@@ -5,28 +5,117 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Task Pulse</title>
   <meta name="theme-color" content="#1d1d1f" />
+
+  <!-- PWA manifest + icons -->
   <link rel="manifest" href="manifest.json" />
   <link rel="apple-touch-icon" sizes="192x192" href="icon-192.png" />
   <link rel="apple-touch-icon" sizes="512x512" href="icon-512.png" />
-</head>
-<body style="font-family: system-ui, sans-serif; background:#1d1d1f; color:#fff; display:flex; align-items:center; justify-content:center; min-height:100vh; text-align:center; padding:24px;">
-  <div style="max-width:320px;">
-    <div style="font-size:2rem; font-weight:600; margin-bottom:12px;">Task Pulse</div>
-    <div style="font-size:0.95rem; line-height:1.4; color:#cfcfd3; margin-bottom:24px;">
-      App shell is loaded.<br/>Your icons are in place.<br/><br/>
-      Next step: paste the full Task Pulse UI HTML here (the long version I sent) so the app interface shows.
-    </div>
-    <div style="font-size:0.8rem; color:#8a8a8d;">
-      After pushing to GitHub Pages, open it in Chrome and Install App.<br/>
-      You'll get offline mode, dark branding, and the TP icon.
-    </div>
-  </div>
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', function() {
-        navigator.serviceWorker.register('sw.js');
-      });
+
+  <style>
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      margin: 0;
+      padding: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Roboto", "Segoe UI", sans-serif;
     }
-  </script>
-</body>
-</html>
+
+    body {
+      background: #f4f4f6;
+      color: #1a1a1a;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      max-width: 480px;
+      margin: 0 auto;
+      border-left: 1px solid #d6d6d6;
+      border-right: 1px solid #d6d6d6;
+    }
+
+    button {
+      border: none;
+      background: none;
+    }
+
+    .hidden { display: none !important; }
+    .small { font-size: 0.8rem; color: #666; }
+
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 10px 24px rgba(0,0,0,0.06);
+      border: 1px solid #ededed;
+      padding: 12px 16px;
+      margin-bottom: 12px;
+      position: relative;
+    }
+
+    .priority-strip {
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 6px;
+      border-radius: 16px 0 0 16px;
+    }
+
+    .strip-high { background: #cfeeff; }
+    .strip-med  { background: #fff7c2; }
+    .strip-low  { background: #ffd9cc; }
+
+    .row-space {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 4px 8px;
+    }
+
+    .task-name {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #111;
+      flex: 1 1 auto;
+    }
+
+    .status-btn {
+      font-size: 0.8rem;
+      font-weight: 500;
+      padding: 6px 10px;
+      border-radius: 10px;
+      border: 1px solid transparent;
+      min-width: 88px;
+      text-align: center;
+    }
+
+    .done {
+      background: #e8fff0;
+      border-color: #34c75933;
+      color: #1d8a3d;
+    }
+    .notdone {
+      background: #fff4f0;
+      border-color: #ff3b3022;
+      color: #b3322a;
+    }
+
+    .subrow {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 6px;
+      font-size: 0.8rem;
+      color: #444;
+    }
+
+    .badge {
+      display: inline-block;
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 4px 8px;
+      border-radius: 999px;
+      line-height: 1.1;
+    }
+    .badge-high { background:#cfeeff; color:#003d66; }
+    .badge-med  { background:#fff7c2; color:#665c00; }
+    .badge-low  { backgr
