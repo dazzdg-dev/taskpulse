@@ -11,6 +11,11 @@
   <link rel="apple-touch-icon" sizes="192x192" href="icon-192.png" />
   <link rel="apple-touch-icon" sizes="512x512" href="icon-512.png" />
 
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+
   <style>
     * {
       box-sizing: border-box;
@@ -617,4 +622,1007 @@
       </div>
 
       <!-- Daily summary -->
-      <div id="daily
+      <div id="dailySummary" class="small" style="text-align:center;color:#444;margin-top:12px;line-height:1.3;"></div>
+    </section>
+
+    <!-- HISTORY SCREEN -->
+    <section id="screen-history" class="hidden">
+      <div class="history-day-header">
+        <div>
+          <div class="small">Viewing</div>
+          <div id="historyDateLabel" style="font-size:0.9rem;font-weight:600;color:#111;">--</div>
+        </div>
+        <div class="history-nav">
+          <button id="prevDayBtn">◀</button>
+          <button id="nextDayBtn">▶</button>
+        </div>
+      </div>
+
+      <div class="small" id="historyStats" style="margin-bottom:12px;">--</div>
+      <div id="historyTaskList"></div>
+    </section>
+
+    <!-- SETTINGS SCREEN -->
+    <section id="screen-settings" class="hidden">
+      <div class="settings-block">
+        <div class="settings-title">Automation</div>
+
+        <div class="settings-row">
+          <div class="settings-desc">Auto-fill time when I mark a task "done"</div>
+          <div class="toggle-row">
+            <label class="small" for="autoTimeToggle">Auto time</label>
+            <input id="autoTimeToggle" type="checkbox" class="toggle" />
+          </div>
+        </div>
+
+        <div class="settings-row">
+          <div class="settings-desc">Carry unfinished tasks to tomorrow</div>
+          <div class="toggle-row">
+            <label class="small" for="rollForwardToggle">Roll forward</label>
+            <input id="rollForwardToggle" type="checkbox" class="toggle" />
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-block">
+        <div class="settings-title">Recurring / Templates</div>
+
+        <div class="settings-row">
+          <div class="settings-desc">
+            Edit the list of common tasks you reuse (cook, clean, meds, etc.)
+          </div>
+          <button class="settings-action" id="editTemplatesBtn">Manage</button>
+        </div>
+      </div>
+
+      <div class="settings-block">
+        <div class="settings-title">Backup / Export</div>
+        <div class="settings-row">
+          <div class="settings-desc">Export last 7 days to .json</div>
+          <button class="settings-action" id="exportBtn">Export</button>
+        </div>
+      </div>
+
+      <!-- SYNC / LINK DEVICES -->
+      <div class="settings-block">
+        <div class="settings-title">Sync between devices</div>
+
+        <div class="settings-row" style="flex-direction:column; align-items:flex-start;">
+          <div class="settings-desc" style="max-width:100%; margin-bottom:12px;">
+            This code links multiple phones/tablets to the SAME Task Pulse list.
+            Share this code with another device, or paste a code here to join.
+          </div>
+
+          <!-- Your current sync code (Device A shows this) -->
+          <div style="width:100%; margin-bottom:12px;">
+            <div class="small" style="font-weight:600; color:#111; margin-bottom:4px;">Your Sync Code</div>
+            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+              <input
+                id="syncCodeDisplay"
+                class="bulk-input"
+                style="flex:1; font-family:monospace; font-size:0.8rem;"
+                readonly
+                value="..."
+              />
+              <button class="settings-action" id="copySyncCodeBtn" style="min-width:70px;">
+                Copy
+              </button>
+            </div>
+            <div class="small" style="color:#666; margin-top:4px;">
+              Give this to your other device.
+            </div>
+          </div>
+
+          <!-- Join an existing sync code (Device B does this) -->
+          <div style="width:100%;">
+            <div class="small" style="font-weight:600; color:#111; margin-bottom:4px;">Join using Sync Code</div>
+            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+              <input
+                id="syncCodeInput"
+                class="bulk-input"
+                style="flex:1; font-family:monospace; font-size:0.8rem;"
+                placeholder="paste code here"
+              />
+              <button class="settings-action" id="joinSyncBtn" style="min-width:70px;">
+                Join
+              </button>
+            </div>
+            <div class="small" style="color:#666; margin-top:4px;">
+              After you join, both devices will stay synced.
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- BOTTOM NAV -->
+  <nav class="bottom-nav">
+    <button class="nav-btn active" data-target="today" id="navToday">
+      <div class="nav-icon">📅</div>
+      Today
+    </button>
+    <button class="nav-btn" data-target="history" id="navHistory">
+      <div class="nav-icon">📖</div>
+      History
+    </button>
+    <button class="nav-btn" data-target="settings" id="navSettings">
+      <div class="nav-icon">⚙️</div>
+      Settings
+    </button>
+  </nav>
+
+  <!-- ADD MENU POPUP -->
+  <div id="addMenuPopup" class="hidden">
+    <div style="background:#fff;border:1px solid #cfcfd3;border-radius:14px;box-shadow:0 20px 40px rgba(0,0,0,.2);padding:8px;min-width:150px;">
+      <button id="addSingleBtn" style="display:block;width:100%;text-align:left;padding:10px 12px;border-radius:10px;font-size:0.9rem;font-weight:500;color:#111;">➕ Single Task</button>
+      <button id="addBulkBtn" style="display:block;width:100%;text-align:left;padding:10px 12px;border-radius:10px;font-size:0.9rem;font-weight:500;color:#111;">📋 Bulk Add</button>
+    </div>
+  </div>
+
+  <!-- BULK ADD SHEET -->
+  <div id="bulkSheet" class="overlay hidden">
+    <div class="sheet">
+      <div class="sheet-header">
+        <div class="sheet-title">Add Tasks (Bulk)</div>
+        <button class="close-btn" id="closeBulk">Close ✕</button>
+      </div>
+
+      <div class="template-bar">
+        <div style="font-weight:500;">Templates</div>
+        <button class="template-btn" id="useTemplatesBtn">Use Templates</button>
+      </div>
+
+      <div class="sheet-body" id="bulkBody"><!-- rows injected --></div>
+
+      <div class="sheet-footer">
+        <button class="primary-btn" id="saveAllBulk">Save All</button>
+        <button class="subtle-btn" id="addBulkRow">+ Add another task</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SINGLE TASK SHEET -->
+  <div id="singleSheet" class="overlay hidden">
+    <div class="sheet">
+      <div class="sheet-header">
+        <div class="sheet-title">Add Task</div>
+        <button class="close-btn" id="closeSingle">Close ✕</button>
+      </div>
+
+      <div class="sheet-body" id="singleBody">
+        <div class="bulk-row">
+          <div class="bulk-field">
+            <label class="bulk-label">Task name</label>
+            <input class="bulk-input" id="singleName" placeholder="e.g. wash dishes" />
+          </div>
+          <div class="bulk-field">
+            <label class="bulk-label">Priority</label>
+            <select class="bulk-select" id="singlePriority">
+              <option value="high">High</option>
+              <option value="med">Medium</option>
+              <option value="low" selected>Low</option>
+            </select>
+          </div>
+          <div class="bulk-field">
+            <label class="bulk-label">Status</label>
+            <select class="bulk-select" id="singleStatus">
+              <option value="not done" selected>not done</option>
+              <option value="done">done</option>
+            </select>
+          </div>
+          <div class="bulk-field">
+            <label class="bulk-label">Date</label>
+            <input class="bulk-input" id="singleDate" type="date" />
+          </div>
+        </div>
+      </div>
+
+      <div class="sheet-footer">
+        <button class="primary-btn" id="saveSingle">Save Task</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TEMPLATES SHEET -->
+  <div id="templateSheet" class="overlay hidden">
+    <div class="sheet">
+      <div class="sheet-header">
+        <div class="sheet-title">Templates</div>
+        <button class="close-btn" id="closeTemplate">Close ✕</button>
+      </div>
+
+      <div class="sheet-body" id="templateBody" style="padding-bottom:100px;">
+        <!-- template choices -->
+      </div>
+
+      <div class="sheet-footer">
+        <button class="primary-btn" id="applyTemplates">Add Selected</button>
+        <button class="subtle-btn" id="editTemplateList">Edit Template List</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADD TEMPLATE PROMPT -->
+  <div id="simplePrompt" class="overlay hidden">
+    <div class="sheet">
+      <div class="sheet-header">
+        <div class="sheet-title">Add Template Task</div>
+        <button class="close-btn" id="closePrompt">Close ✕</button>
+      </div>
+      <div class="sheet-body">
+        <div class="bulk-row">
+          <div class="bulk-field">
+            <label class="bulk-label">Task name</label>
+            <input class="bulk-input" id="promptName" placeholder="e.g. cook" />
+          </div>
+          <div class="bulk-field">
+            <label class="bulk-label">Default priority</label>
+            <select class="bulk-select" id="promptPriority">
+              <option value="high">High</option>
+              <option value="med">Medium</option>
+              <option value="low" selected>Low</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="sheet-footer">
+        <button class="primary-btn" id="saveTemplateBtn">Save Template</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // =========================
+    // FIREBASE CONFIG / SYNC
+    // =========================
+
+    // 1. Paste your Firebase config here:
+    const firebaseConfig = {
+      apiKey: "YOUR_KEY_HERE",
+      authDomain: "YOUR_APP.firebaseapp.com",
+      databaseURL: "https://YOUR_APP-default-rtdb.firebaseio.com",
+      projectId: "YOUR_APP",
+      storageBucket: "YOUR_APP.appspot.com",
+      messagingSenderId: "YOUR_SENDER_ID",
+      appId: "YOUR_APP_ID"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+
+    let currentUserId = null;   // this device's anonymous auth UID
+    let activeSyncCode = null;  // the shared "room" code we sync under
+
+    function loadSyncCode() {
+      const raw = localStorage.getItem('tp_sync_code');
+      return raw || null;
+    }
+
+    function saveSyncCode(code) {
+      localStorage.setItem('tp_sync_code', code);
+    }
+
+    function signInAnon() {
+      return firebase.auth().signInAnonymously().then(cred => {
+        currentUserId = cred.user.uid;
+
+        // Check if we already have a sync code stored
+        const existing = loadSyncCode();
+        if (existing) {
+          activeSyncCode = existing;
+        } else {
+          activeSyncCode = currentUserId;
+          saveSyncCode(activeSyncCode);
+        }
+
+        console.log("Signed in as", currentUserId, "sync code:", activeSyncCode);
+
+        startRealtimeSync();
+      });
+    }
+
+    function userTasksRef() {
+      if (!activeSyncCode) return null;
+      return firebase.database().ref("users/" + activeSyncCode + "/tasks");
+    }
+
+    function uploadTasksToCloud() {
+      const tasks = loadTasks();
+      const ref = userTasksRef();
+      if (!ref) return;
+      const obj = {};
+      tasks.forEach(t => { obj[t.id] = t; });
+      ref.set(obj);
+    }
+
+    function downloadTasksFromCloud() {
+      const ref = userTasksRef();
+      if (!ref) return;
+
+      ref.once("value").then(snap => {
+        const cloudData = snap.val() || {};
+        const cloudTasks = Object.values(cloudData);
+
+        // merge into local (local wins if conflict)
+        const local = loadTasks();
+        const localById = {};
+        local.forEach(t => localById[t.id] = t);
+
+        cloudTasks.forEach(ct => {
+          if (!localById[ct.id]) {
+            local.push(ct);
+          }
+        });
+
+        saveTasks(local);
+        renderAll();
+      });
+    }
+
+    function startRealtimeSync() {
+      const ref = userTasksRef();
+      if (!ref) return;
+
+      ref.on("value", snap => {
+        const cloudData = snap.val() || {};
+        const cloudTasks = Object.values(cloudData);
+
+        // merge new cloud tasks into local
+        const local = loadTasks();
+        const localById = {};
+        local.forEach(t => localById[t.id] = t);
+
+        let changed = false;
+        cloudTasks.forEach(ct => {
+          if (!localById[ct.id]) {
+            local.push(ct);
+            changed = true;
+          }
+        });
+
+        if (changed) {
+          saveTasks(local);
+          renderAll();
+        }
+      });
+    }
+
+    function updateSyncUI() {
+      const codeField = document.getElementById('syncCodeDisplay');
+      if (codeField && activeSyncCode) {
+        codeField.value = activeSyncCode;
+      }
+    }
+
+    function bindCopySyncCode() {
+      const btn = document.getElementById('copySyncCodeBtn');
+      if (!btn) return;
+      btn.addEventListener('click', () => {
+        const codeField = document.getElementById('syncCodeDisplay');
+        if (!codeField) return;
+        codeField.select();
+        codeField.setSelectionRange(0, 99999);
+        try {
+          document.execCommand('copy');
+        } catch(e) {}
+        btn.textContent = "Copied!";
+        setTimeout(()=>{ btn.textContent = "Copy"; }, 1500);
+      });
+    }
+
+    function bindJoinSync() {
+      const btn = document.getElementById('joinSyncBtn');
+      if (!btn) return;
+      btn.addEventListener('click', () => {
+        const input = document.getElementById('syncCodeInput');
+        if (!input) return;
+        const newCode = input.value.trim();
+        if (!newCode) return;
+
+        // 1. save new sync room code
+        activeSyncCode = newCode;
+        saveSyncCode(newCode);
+
+        // 2. listen to that code
+        startRealtimeSync();
+
+        // 3. pull tasks from that code into this device
+        downloadTasksFromCloud();
+
+        // 4. upload local tasks back to that code
+        uploadTasksToCloud();
+
+        // 5. refresh UI
+        updateSyncUI();
+
+        // tiny feedback
+        btn.textContent = "Linked!";
+        setTimeout(()=>{ btn.textContent = "Join"; }, 1500);
+      });
+    }
+
+    // =========================
+    // LOCAL STORAGE / MODEL
+    // =========================
+
+    function loadTasks() {
+      const raw = localStorage.getItem('tp_tasks');
+      return raw ? JSON.parse(raw) : [];
+    }
+    function saveTasks(tasks) {
+      localStorage.setItem('tp_tasks', JSON.stringify(tasks));
+    }
+
+    function loadSettings() {
+      const raw = localStorage.getItem('tp_settings');
+      return raw ? JSON.parse(raw) : {
+        autoTime:true,
+        rollForward:true,
+      };
+    }
+    function saveSettings(s) {
+      localStorage.setItem('tp_settings', JSON.stringify(s));
+    }
+
+    function loadTemplates() {
+      const raw = localStorage.getItem('tp_templates');
+      return raw ? JSON.parse(raw) : [
+        {name:'cook', priority:'high'},
+        {name:'clean', priority:'high'},
+        {name:'wash dishes', priority:'low'},
+        {name:'take out bin', priority:'med'},
+        {name:'meds / health check', priority:'high'},
+      ];
+    }
+    function saveTemplates(list) {
+      localStorage.setItem('tp_templates', JSON.stringify(list));
+    }
+
+    // date/time helpers
+    function todayISO() {
+      const d = new Date();
+      return d.toISOString().slice(0,10);
+    }
+    function fmtDateDisplay(isoDate) {
+      if(!isoDate) return '';
+      const [y,m,d] = isoDate.split('-');
+      return `${d}-${m}-${y}`;
+    }
+    function nowTimeStr() {
+      const d = new Date();
+      let hh = d.getHours();
+      let mm = d.getMinutes();
+      if (hh<10) hh = '0'+hh;
+      if (mm<10) mm = '0'+mm;
+      return `${hh}:${mm}`;
+    }
+    function shiftDate(iso, days) {
+      const d = new Date(iso+'T00:00:00');
+      d.setDate(d.getDate()+days);
+      return d.toISOString().slice(0,10);
+    }
+
+    // task model
+    // {
+    //   id: "t_xxx",
+    //   name: string,
+    //   priority: "high" | "med" | "low",
+    //   status: "done" | "not done",
+    //   timeCompleted: "HH:MM" | "",
+    //   dateAssigned: "yyyy-mm-dd"
+    // }
+    function createTask(obj={}) {
+      return {
+        id: 't_'+Math.random().toString(36).slice(2,9),
+        name: obj.name || '',
+        priority: obj.priority || 'low',
+        status: obj.status || 'not done',
+        timeCompleted: obj.timeCompleted || '',
+        dateAssigned: obj.dateAssigned || todayISO(),
+      };
+    }
+
+    // =========================
+    // RENDER TODAY SCREEN
+    // =========================
+
+    function renderToday() {
+      const tasks = loadTasks();
+      const today = todayISO();
+      const todaysTasks = tasks.filter(t => t.dateAssigned === today);
+
+      const high = todaysTasks.filter(t=>t.priority==='high');
+      const med  = todaysTasks.filter(t=>t.priority==='med');
+      const low  = todaysTasks.filter(t=>t.priority==='low');
+
+      document.getElementById('highList').innerHTML = high.map(renderTaskCard).join('');
+      document.getElementById('medList').innerHTML  = med.map(renderTaskCard).join('');
+      document.getElementById('lowList').innerHTML  = low.map(renderTaskCard).join('');
+
+      document.getElementById('highCount').textContent = `${high.length} task${high.length!==1?'s':''}`;
+      document.getElementById('medCount').textContent  = `${med.length} task${med.length!==1?'s':''}`;
+      document.getElementById('lowCount').textContent  = `${low.length} task${low.length!==1?'s':''}`;
+
+      const doneCt    = todaysTasks.filter(t=>t.status==='done').length;
+      const notdoneCt = todaysTasks.filter(t=>t.status==='not done').length;
+      const highLeft  = high.filter(t=>t.status==='not done').length;
+
+      document.getElementById('statsDone').textContent = `✅ Done: ${doneCt}`;
+      document.getElementById('statsNotDone').textContent = `⏳ Not done: ${notdoneCt}`;
+      document.getElementById('statsHighLeft').textContent = `🔥 High left: ${highLeft}`;
+
+      const doneNames = todaysTasks.filter(t=>t.status==='done').map(t=>t.name);
+      const summaryEl = document.getElementById('dailySummary');
+      if(doneNames.length>0) {
+        if(doneNames.length===1) {
+          summaryEl.textContent = `You finished ${doneNames[0]} today. Good work.`;
+        } else {
+          const last = doneNames.pop();
+          summaryEl.textContent = `You finished ${doneNames.join(', ')} and ${last} today. Good work.`;
+        }
+      } else {
+        summaryEl.textContent = '';
+      }
+
+      const label = fmtDateDisplay(today);
+      document.getElementById('todayDate').textContent = label;
+    }
+
+    function renderTaskCard(t) {
+      const stripClass = t.priority==='high' ? 'strip-high' : t.priority==='med' ? 'strip-med' : 'strip-low';
+      const badgeClass = t.priority==='high' ? 'badge-high' : t.priority==='med' ? 'badge-med' : 'badge-low';
+      const statusClass = (t.status==='done') ? 'done' : 'notdone';
+
+      return `
+        <div class="card" data-id="${t.id}">
+          <div class="priority-strip ${stripClass}"></div>
+          <div class="row-space">
+            <div class="task-name">${escapeHTML(t.name)}</div>
+            <button class="status-btn ${statusClass}" onclick="toggleStatus('${t.id}')">${t.status}</button>
+          </div>
+          <div class="subrow">
+            <div><span class="label">Priority:</span> <span class="badge ${badgeClass}">${t.priority.toUpperCase()}</span></div>
+            <div><span class="label">Time:</span> ${t.timeCompleted||'—'}</div>
+            <div><span class="label">Date:</span> ${fmtDateDisplay(t.dateAssigned)}</div>
+          </div>
+        </div>
+      `;
+    }
+
+    // toggle done <-> not done
+    function toggleStatus(id) {
+      const tasks = loadTasks();
+      const settings = loadSettings();
+      const t = tasks.find(x=>x.id===id);
+      if(!t) return;
+
+      if(t.status==='done') {
+        t.status='not done';
+        t.timeCompleted='';
+      } else {
+        t.status='done';
+        if(settings.autoTime) {
+          t.timeCompleted = nowTimeStr();
+        }
+      }
+      saveTasks(tasks);
+      uploadTasksToCloud(); // NEW: push change to cloud
+      renderAll();
+    }
+
+    // add inline task
+    function addInline(priority, inputId) {
+      const input = document.getElementById(inputId);
+      const name = input.value.trim();
+      if(!name) return;
+
+      const tasks = loadTasks();
+      tasks.push(createTask({
+        name,
+        priority,
+        status:'not done',
+        dateAssigned: todayISO(),
+      }));
+      saveTasks(tasks);
+      uploadTasksToCloud(); // sync
+      input.value='';
+      renderAll();
+    }
+
+    // =========================
+    // HISTORY SCREEN
+    // =========================
+
+    let historyDate = todayISO();
+
+    function renderHistory() {
+      const tasks = loadTasks();
+      const dayTasks = tasks.filter(t=>t.dateAssigned===historyDate);
+
+      const doneCt    = dayTasks.filter(t=>t.status==='done').length;
+      const totalCt   = dayTasks.length;
+      const pct = totalCt>0 ? Math.round((doneCt/totalCt)*100) : 0;
+
+      document.getElementById('historyDateLabel').textContent = fmtDateDisplay(historyDate);
+      document.getElementById('historyStats').textContent = `${doneCt} / ${totalCt} tasks done (${pct}%)`;
+
+      document.getElementById('historyTaskList').innerHTML = dayTasks.map(renderTaskCard).join('');
+    }
+
+    // =========================
+    // SETTINGS SCREEN
+    // =========================
+
+    function renderSettings() {
+      const s = loadSettings();
+      document.getElementById('autoTimeToggle').checked = !!s.autoTime;
+      document.getElementById('rollForwardToggle').checked = !!s.rollForward;
+
+      // also refresh sync code UI text
+      updateSyncUI();
+    }
+
+    function bindSettingsEvents() {
+      const autoT = document.getElementById('autoTimeToggle');
+      const rollF = document.getElementById('rollForwardToggle');
+      autoT.addEventListener('change', ()=>{
+        const s = loadSettings();
+        s.autoTime = autoT.checked;
+        saveSettings(s);
+      });
+      rollF.addEventListener('change', ()=>{
+        const s = loadSettings();
+        s.rollForward = rollF.checked;
+        saveSettings(s);
+      });
+    }
+
+    // =========================
+    // ADD MENU / SHEETS
+    // =========================
+
+    const addMenuBtn = document.getElementById('addMenuBtn');
+    const addMenuPopup = document.getElementById('addMenuPopup');
+    addMenuBtn.addEventListener('click', ()=>{
+      addMenuPopup.classList.toggle('hidden');
+    });
+    document.addEventListener('click', (e)=>{
+      if(e.target===addMenuBtn) return;
+      if(addMenuPopup.contains(e.target)) return;
+      addMenuPopup.classList.add('hidden');
+    });
+
+    // ---- BULK ADD SHEET ----
+    const bulkSheet = document.getElementById('bulkSheet');
+    const bulkBody  = document.getElementById('bulkBody');
+    const addBulkRowBtn = document.getElementById('addBulkRow');
+    const saveAllBulkBtn= document.getElementById('saveAllBulk');
+    const closeBulkBtn  = document.getElementById('closeBulk');
+
+    document.getElementById('addBulkBtn').addEventListener('click',()=>{
+      openBulkSheet();
+    });
+    closeBulkBtn.addEventListener('click',closeBulkSheet);
+
+    function openBulkSheet() {
+      bulkBody.innerHTML='';
+      addBulkRowUI();
+      bulkSheet.classList.remove('hidden');
+      addMenuPopup.classList.add('hidden');
+    }
+    function closeBulkSheet() {
+      bulkSheet.classList.add('hidden');
+    }
+
+    function addBulkRowUI(preset) {
+      const idx = Math.random().toString(36).slice(2,7);
+      const row = document.createElement('div');
+      row.className='bulk-row';
+      row.setAttribute('data-row', idx);
+      row.innerHTML = `
+        <div class="bulk-field">
+          <label class="bulk-label">Task name</label>
+          <input class="bulk-input" data-field="name" placeholder="e.g. sweep floor" value="${preset?.name||''}"/>
+        </div>
+        <div class="bulk-field">
+          <label class="bulk-label">Priority</label>
+          <select class="bulk-select" data-field="priority">
+            <option value="high" ${preset?.priority==='high'?'selected':''}>High</option>
+            <option value="med" ${preset?.priority==='med'?'selected':''}>Medium</option>
+            <option value="low" ${(!preset||preset.priority==='low')?'selected':''}>Low</option>
+          </select>
+        </div>
+        <div class="bulk-field">
+          <label class="bulk-label">Status</label>
+          <select class="bulk-select" data-field="status">
+            <option value="not done" selected>not done</option>
+            <option value="done">done</option>
+          </select>
+        </div>
+        <div class="bulk-field">
+          <label class="bulk-label">Date</label>
+          <input class="bulk-input" data-field="date" type="date" value="${todayISO()}" />
+        </div>
+      `;
+      bulkBody.appendChild(row);
+    }
+
+    addBulkRowBtn.addEventListener('click',()=>{
+      addBulkRowUI();
+    });
+
+    saveAllBulkBtn.addEventListener('click',()=>{
+      const tasks = loadTasks();
+      [...bulkBody.querySelectorAll('.bulk-row')].forEach(row=>{
+        const name = row.querySelector('[data-field="name"]').value.trim();
+        if(!name) return;
+        const priority = row.querySelector('[data-field="priority"]').value;
+        const status   = row.querySelector('[data-field="status"]').value;
+        const date     = row.querySelector('[data-field="date"]').value || todayISO();
+        const t = createTask({name,priority,status,dateAssigned:date});
+        if(status==='done'){
+          const s=loadSettings();
+          t.timeCompleted = s.autoTime? nowTimeStr():'';
+        }
+        tasks.push(t);
+      });
+      saveTasks(tasks);
+      uploadTasksToCloud(); // sync
+      closeBulkSheet();
+      renderAll();
+    });
+
+    // ---- SINGLE ADD SHEET ----
+    const singleSheet = document.getElementById('singleSheet');
+    const closeSingleBtn = document.getElementById('closeSingle');
+    const saveSingleBtn  = document.getElementById('saveSingle');
+
+    document.getElementById('addSingleBtn').addEventListener('click',()=>{
+      openSingleSheet();
+    });
+    closeSingleBtn.addEventListener('click',()=>{
+      singleSheet.classList.add('hidden');
+    });
+
+    function openSingleSheet(){
+      document.getElementById('singleName').value='';
+      document.getElementById('singlePriority').value='low';
+      document.getElementById('singleStatus').value='not done';
+      document.getElementById('singleDate').value=todayISO();
+
+      singleSheet.classList.remove('hidden');
+      addMenuPopup.classList.add('hidden');
+    }
+
+    saveSingleBtn.addEventListener('click',()=>{
+      const name = document.getElementById('singleName').value.trim();
+      if(!name) return;
+      const priority = document.getElementById('singlePriority').value;
+      const status   = document.getElementById('singleStatus').value;
+      const date     = document.getElementById('singleDate').value || todayISO();
+
+      const t = createTask({name,priority,status,dateAssigned:date});
+      if(status==='done'){
+        const s=loadSettings();
+        t.timeCompleted = s.autoTime?nowTimeStr():'';
+      }
+
+      const tasks = loadTasks();
+      tasks.push(t);
+      saveTasks(tasks);
+      uploadTasksToCloud(); // sync
+
+      singleSheet.classList.add('hidden');
+      renderAll();
+    });
+
+    // inline add buttons
+    document.getElementById('inlineHighSave').addEventListener('click',()=>{
+      addInline('high','inlineHighInput');
+    });
+    document.getElementById('inlineMedSave').addEventListener('click',()=>{
+      addInline('med','inlineMedInput');
+    });
+    document.getElementById('inlineLowSave').addEventListener('click',()=>{
+      addInline('low','inlineLowInput');
+    });
+
+    // =========================
+    // HISTORY NAV
+    // =========================
+
+    document.getElementById('prevDayBtn').addEventListener('click',()=>{
+      historyDate = shiftDate(historyDate,-1);
+      renderAll();
+    });
+    document.getElementById('nextDayBtn').addEventListener('click',()=>{
+      historyDate = shiftDate(historyDate,1);
+      renderAll();
+    });
+
+    // =========================
+    // NAV BAR
+    // =========================
+
+    const navToday    = document.getElementById('navToday');
+    const navHistory  = document.getElementById('navHistory');
+    const navSettings = document.getElementById('navSettings');
+
+    function setScreen(screen){
+      document.getElementById('screen-today').classList.toggle('hidden', screen!=='today');
+      document.getElementById('screen-history').classList.toggle('hidden', screen!=='history');
+      document.getElementById('screen-settings').classList.toggle('hidden', screen!=='settings');
+
+      [navToday,navHistory,navSettings].forEach(btn=>btn.classList.remove('active'));
+      if(screen==='today') navToday.classList.add('active');
+      if(screen==='history') navHistory.classList.add('active');
+      if(screen==='settings') navSettings.classList.add('active');
+    }
+
+    navToday.addEventListener('click',()=>{
+      setScreen('today');
+      renderAll();
+    });
+    navHistory.addEventListener('click',()=>{
+      setScreen('history');
+      renderAll();
+    });
+    navSettings.addEventListener('click',()=>{
+      setScreen('settings');
+      renderAll();
+    });
+
+    // =========================
+    // TEMPLATES SHEET
+    // =========================
+
+    const templateSheet = document.getElementById('templateSheet');
+    const templateBody  = document.getElementById('templateBody');
+    const closeTemplateBtn = document.getElementById('closeTemplate');
+    const useTemplatesBtn  = document.getElementById('useTemplatesBtn');
+    const applyTemplatesBtn= document.getElementById('applyTemplates');
+    const editTemplateListBtn = document.getElementById('editTemplateList');
+
+    useTemplatesBtn.addEventListener('click',()=>{
+      openTemplateSheet();
+    });
+    closeTemplateBtn.addEventListener('click',()=>{
+      templateSheet.classList.add('hidden');
+    });
+
+    function openTemplateSheet(){
+      templateBody.innerHTML='';
+      const list = loadTemplates();
+      list.forEach((tpl,i)=>{
+        const row = document.createElement('div');
+        row.className='bulk-row';
+        row.innerHTML=`
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
+            <div style="flex:1;">
+              <div style="font-size:0.9rem;font-weight:600;color:#111;">${escapeHTML(tpl.name)}</div>
+              <div style="font-size:0.8rem;color:#555;margin-top:4px;">Priority: ${tpl.priority.toUpperCase()}</div>
+            </div>
+            <div style="text-align:right;">
+              <input type="checkbox" data-tpl-idx="${i}" style="width:22px;height:22px;" />
+            </div>
+          </div>
+        `;
+        templateBody.appendChild(row);
+      });
+      templateSheet.classList.remove('hidden');
+    }
+
+    applyTemplatesBtn.addEventListener('click',()=>{
+      const checked = [...templateBody.querySelectorAll('input[type="checkbox"]:checked')];
+      const list = loadTemplates();
+      checked.forEach(chk=>{
+        const idx = parseInt(chk.getAttribute('data-tpl-idx'),10);
+        const tpl = list[idx];
+        addBulkRowUI({name:tpl.name, priority:tpl.priority});
+      });
+      templateSheet.classList.add('hidden');
+    });
+
+    // template edit prompt
+    const simplePrompt = document.getElementById('simplePrompt');
+    const closePromptBtn = document.getElementById('closePrompt');
+    const saveTemplateBtn = document.getElementById('saveTemplateBtn');
+
+    document.getElementById('editTemplatesBtn').addEventListener('click',()=>{
+      document.getElementById('promptName').value='';
+      document.getElementById('promptPriority').value='low';
+      simplePrompt.classList.remove('hidden');
+    });
+
+    editTemplateListBtn.addEventListener('click',()=>{
+      document.getElementById('promptName').value='';
+      document.getElementById('promptPriority').value='low';
+      simplePrompt.classList.remove('hidden');
+    });
+
+    closePromptBtn.addEventListener('click',()=>{
+      simplePrompt.classList.add('hidden');
+    });
+
+    saveTemplateBtn.addEventListener('click',()=>{
+      const nm = document.getElementById('promptName').value.trim();
+      const pr = document.getElementById('promptPriority').value;
+      if(!nm) return;
+      const list = loadTemplates();
+      list.push({name:nm, priority:pr});
+      saveTemplates(list);
+      simplePrompt.classList.add('hidden');
+    });
+
+    // =========================
+    // EXPORT LAST 7 DAYS
+    // =========================
+
+    document.getElementById('exportBtn').addEventListener('click',()=>{
+      const tasks = loadTasks();
+      const now = todayISO();
+      const days = [];
+      for(let i=0;i<7;i++){
+        days.push(shiftDate(now,-i));
+      }
+      const filtered = tasks.filter(t=>days.includes(t.dateAssigned));
+      const blob = new Blob([JSON.stringify(filtered,null,2)], {type:'application/json'});
+      const url = URL.createObjectURL(blob);
+
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'taskpulse_export.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    // =========================
+    // UTILS
+    // =========================
+
+    function escapeHTML(str){
+      return str.replace(/[&<>"]/g,function(c){
+        return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];
+      });
+    }
+
+    function renderAll(){
+      renderToday();
+      renderHistory();
+      renderSettings();
+    }
+
+    // =========================
+    // INIT
+    // =========================
+
+    function init() {
+      // local defaults
+      saveSettings(loadSettings());
+      historyDate = todayISO();
+      bindSettingsEvents();
+      setScreen('today');
+      renderAll();
+
+      // sync UI buttons
+      bindCopySyncCode();
+      bindJoinSync();
+
+      // sign in to Firebase, load/merge shared tasks
+      signInAnon().then(() => {
+        updateSyncUI();        // show sync code in settings
+        downloadTasksFromCloud(); // pull shared tasks
+      });
+
+      // register service worker for offline PWA
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+          navigator.serviceWorker.register('sw.js');
+        });
+      }
+    }
+
+    init();
+  </script>
+</body>
+    </html>
