@@ -118,4 +118,503 @@
     }
     .badge-high { background:#cfeeff; color:#003d66; }
     .badge-med  { background:#fff7c2; color:#665c00; }
-    .badge-low  { backgr
+    .badge-low  { background:#ffd9cc; color:#5e1f00; }
+
+    .label { color:#777; font-size:0.7rem; margin-right:2px; }
+
+    header {
+      background: radial-gradient(circle at 20% 20%, #2c2c2f 0%, #1d1d1f 60%);
+      color: #fff;
+      padding: 16px;
+      border-bottom: 1px solid #000;
+      border-radius: 0 0 20px 20px;
+      box-shadow: 0 12px 32px rgba(0,0,0,0.4);
+      position: relative;
+      z-index: 10;
+    }
+
+    .header-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+    }
+
+    .header-left {
+      display:flex;
+      flex-direction:column;
+    }
+
+    .today-label {
+      font-size: 0.8rem;
+      color: #bdbdbd;
+      font-weight: 500;
+    }
+
+    .today-date {
+      color:#fff;
+      font-size:1.1rem;
+      font-weight:600;
+      line-height:1.3;
+    }
+
+    .add-menu-btn {
+      background:#2a2a2e;
+      color:#fff;
+      border:1px solid #3a3a3e;
+      border-radius:12px;
+      padding:8px 12px;
+      font-size:0.9rem;
+      font-weight:500;
+      min-width:100px;
+      text-align:center;
+    }
+
+    .stats-row {
+      display:flex;
+      justify-content:space-between;
+      margin-top:16px;
+      font-size:0.8rem;
+      color:#d9d9d9;
+      flex-wrap:wrap;
+      row-gap:6px;
+    }
+
+    .stats-item {
+      background:#2a2a2e;
+      padding:8px 10px;
+      border-radius:10px;
+      border:1px solid #3a3a3e;
+      min-width:30%;
+      text-align:center;
+      font-weight:500;
+    }
+
+    main {
+      flex: 1;
+      padding: 16px;
+      padding-bottom: 80px;
+    }
+
+    .priority-section {
+      margin-bottom: 24px;
+    }
+
+    .priority-header {
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      margin-bottom:8px;
+    }
+
+    .priority-title {
+      font-size:0.9rem;
+      font-weight:600;
+      color:#1a1a1a;
+      display:flex;
+      align-items:center;
+      gap:6px;
+    }
+
+    .priority-dot {
+      width:8px;
+      height:8px;
+      border-radius:50%;
+    }
+    .dot-high { background:#4db6ff; }
+    .dot-med  { background:#ffe766; }
+    .dot-low  { background:#ff9a73; }
+
+    .inline-add-row {
+      background:#fff;
+      border-radius:12px;
+      border:1px solid #dcdcdc;
+      padding:10px 12px;
+      display:flex;
+      align-items:center;
+      gap:8px;
+      margin-top:8px;
+    }
+
+    .inline-add-input {
+      flex:1;
+      border:none;
+      font-size:0.9rem;
+      outline:none;
+    }
+
+    .inline-add-save {
+      background:#1d1d1f;
+      color:#fff;
+      font-size:0.8rem;
+      font-weight:500;
+      border-radius:10px;
+      padding:8px 12px;
+      white-space:nowrap;
+    }
+
+    .bottom-nav {
+      position: fixed;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100%;
+      max-width: 480px;
+      background: #fff;
+      border-top: 1px solid #dcdcdc;
+      box-shadow: 0 -8px 24px rgba(0,0,0,0.08);
+      border-radius: 20px 20px 0 0;
+      padding: 10px 16px 16px;
+      display: flex;
+      justify-content: space-around;
+      z-index: 20;
+    }
+
+    .nav-btn {
+      flex:1;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      font-size:0.7rem;
+      font-weight:500;
+      color:#777;
+    }
+    .nav-btn.active {
+      color:#000;
+      font-weight:600;
+    }
+
+    .nav-icon {
+      width:24px;
+      height:24px;
+      border-radius:8px;
+      background:#efefef;
+      border:1px solid #d6d6d6;
+      margin-bottom:4px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size:0.8rem;
+      font-weight:600;
+      color:#444;
+    }
+    .nav-btn.active .nav-icon {
+      background:#1d1d1f;
+      color:#fff;
+      border-color:#1d1d1f;
+    }
+
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      backdrop-filter: blur(2px);
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      z-index: 100;
+    }
+
+    .sheet {
+      background:#fff;
+      width:100%;
+      max-width:480px;
+      border-radius:20px 20px 0 0;
+      max-height:90vh;
+      display:flex;
+      flex-direction:column;
+      overflow:hidden;
+    }
+
+    .sheet-header {
+      padding:16px;
+      border-bottom:1px solid #eee;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+    }
+
+    .sheet-title {
+      font-size:1rem;
+      font-weight:600;
+    }
+
+    .close-btn {
+      font-size:0.9rem;
+      color:#555;
+    }
+
+    .template-bar {
+      background:#f7f7f9;
+      border-bottom:1px solid #e4e4e8;
+      padding:12px 16px;
+      font-size:0.8rem;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      flex-wrap:wrap;
+      row-gap:6px;
+    }
+
+    .template-btn {
+      background:#1d1d1f;
+      color:#fff;
+      border-radius:10px;
+      padding:8px 12px;
+      font-size:0.8rem;
+      font-weight:500;
+      border:1px solid #1d1d1f;
+    }
+
+    .sheet-body {
+      padding:16px;
+      overflow-y:auto;
+      flex:1;
+    }
+
+    .bulk-row {
+      background:#fff;
+      border:1px solid #dcdcdc;
+      border-radius:12px;
+      padding:12px;
+      margin-bottom:12px;
+    }
+
+    .bulk-field {
+      display:flex;
+      flex-direction:column;
+      margin-bottom:8px;
+      font-size:0.8rem;
+    }
+
+    .bulk-label {
+      color:#555;
+      font-weight:500;
+      margin-bottom:4px;
+    }
+
+    .bulk-input,
+    .bulk-select {
+      border:1px solid #cfcfd3;
+      border-radius:10px;
+      padding:10px 12px;
+      font-size:0.9rem;
+      outline:none;
+      width:100%;
+      background:#fff;
+    }
+
+    .sheet-footer {
+      padding:16px;
+      border-top:1px solid #eee;
+    }
+
+    .primary-btn {
+      background:#1d1d1f;
+      color:#fff;
+      width:100%;
+      padding:14px 16px;
+      border-radius:14px;
+      font-size:1rem;
+      font-weight:600;
+      border:1px solid #1d1d1f;
+    }
+
+    .subtle-btn {
+      background:#fff;
+      color:#1d1d1f;
+      width:100%;
+      padding:12px 16px;
+      border-radius:12px;
+      font-size:0.9rem;
+      font-weight:500;
+      border:1px solid #cfcfd3;
+      margin-top:8px;
+    }
+
+    .history-day-header {
+      font-size:0.8rem;
+      font-weight:600;
+      color:#444;
+      margin-bottom:8px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+    }
+
+    .history-nav {
+      display:flex;
+      gap:8px;
+      font-size:0.8rem;
+    }
+
+    .history-nav button {
+      background:#fff;
+      border:1px solid #cfcfd3;
+      color:#1d1d1f;
+      padding:8px 10px;
+      border-radius:10px;
+      font-weight:500;
+      min-width:70px;
+    }
+
+    .settings-block {
+      background:#fff;
+      border-radius:16px;
+      border:1px solid #ededed;
+      box-shadow:0 10px 24px rgba(0,0,0,0.05);
+      padding:16px;
+      margin-bottom:16px;
+    }
+
+    .settings-title {
+      font-size:0.9rem;
+      font-weight:600;
+      color:#111;
+      margin-bottom:8px;
+    }
+
+    .settings-row {
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-start;
+      margin-bottom:12px;
+      font-size:0.8rem;
+    }
+
+    .settings-desc {
+      color:#444;
+      max-width:75%;
+      line-height:1.3;
+    }
+
+    .settings-action {
+      font-size:0.8rem;
+      font-weight:500;
+      background:#1d1d1f;
+      color:#fff;
+      border-radius:10px;
+      border:1px solid #1d1d1f;
+      padding:8px 10px;
+    }
+
+    .toggle-row {
+      display:flex;
+      align-items:center;
+      gap:8px;
+      font-size:0.8rem;
+      font-weight:500;
+    }
+
+    .toggle {
+      appearance:none;
+      width:40px;
+      height:22px;
+      background:#cfcfd3;
+      border-radius:999px;
+      position:relative;
+      outline:none;
+      cursor:pointer;
+      transition:all .15s;
+    }
+    .toggle:checked{
+      background:#1d1d1f;
+    }
+    .toggle:checked::after{
+      left:20px;
+    }
+    .toggle::after{
+      content:"";
+      position:absolute;
+      top:3px; left:3px;
+      width:16px;
+      height:16px;
+      border-radius:50%;
+      background:#fff;
+      box-shadow:0 2px 4px rgba(0,0,0,0.2);
+      transition:all .15s;
+    }
+
+    #addMenuPopup {
+      position:fixed;
+      right:16px;
+      top:70px;
+      z-index:200;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- HEADER / TODAY OVERVIEW -->
+  <header>
+    <div class="header-row">
+      <div class="header-left">
+        <div class="today-label">Today</div>
+        <div class="today-date" id="todayDate">--</div>
+      </div>
+      <div>
+        <button class="add-menu-btn" id="addMenuBtn">+ Add Task</button>
+      </div>
+    </div>
+
+    <div class="stats-row" id="statsRow">
+      <div class="stats-item" id="statsDone">✅ Done: 0</div>
+      <div class="stats-item" id="statsNotDone">⏳ Not done: 0</div>
+      <div class="stats-item" id="statsHighLeft">🔥 High left: 0</div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTENT -->
+  <main>
+    <!-- TODAY SCREEN -->
+    <section id="screen-today">
+      <!-- High Priority -->
+      <div class="priority-section" id="section-high">
+        <div class="priority-header">
+          <div class="priority-title">
+            <div class="priority-dot dot-high"></div>
+            High Priority
+          </div>
+          <div class="small" id="highCount">0 tasks</div>
+        </div>
+        <div id="highList"></div>
+        <div class="inline-add-row">
+          <input class="inline-add-input" id="inlineHighInput" placeholder="Add task to High..." />
+          <button class="inline-add-save" id="inlineHighSave">Save</button>
+        </div>
+      </div>
+
+      <!-- Medium Priority -->
+      <div class="priority-section" id="section-med">
+        <div class="priority-header">
+          <div class="priority-title">
+            <div class="priority-dot dot-med"></div>
+            Medium Priority
+          </div>
+          <div class="small" id="medCount">0 tasks</div>
+        </div>
+        <div id="medList"></div>
+        <div class="inline-add-row">
+          <input class="inline-add-input" id="inlineMedInput" placeholder="Add task to Medium..." />
+          <button class="inline-add-save" id="inlineMedSave">Save</button>
+        </div>
+      </div>
+
+      <!-- Low Priority -->
+      <div class="priority-section" id="section-low">
+        <div class="priority-header">
+          <div class="priority-title">
+            <div class="priority-dot dot-low"></div>
+            Low Priority
+          </div>
+          <div class="small" id="lowCount">0 tasks</div>
+        </div>
+        <div id="lowList"></div>
+        <div class="inline-add-row">
+          <input class="inline-add-input" id="inlineLowInput" placeholder="Add task to Low..." />
+          <button class="inline-add-save" id="inlineLowSave">Save</button>
+        </div>
+      </div>
+
+      <!-- Daily summary -->
+      <div id="daily
