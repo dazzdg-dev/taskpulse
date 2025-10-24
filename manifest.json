@@ -1,0 +1,28 @@
+{
+  "name": "Task Pulse",
+  "short_name": "TaskPulse",
+  "description": "Daily priority task manager with history, bulk add, templates, offline mode, and branding.",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#1d1d1f",
+  "theme_color": "#1d1d1f",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "splash-screen-branded.png",
+      "sizes": "1024x1024",
+      "type": "image/png"
+    }
+  ]
+}
