@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Task Pulse</title>
+  <meta name="theme-color" content="#1d1d1f" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" sizes="192x192" href="icon-192.png" />
+  <link rel="apple-touch-icon" sizes="512x512" href="icon-512.png" />
+</head>
+<body style="font-family: system-ui, sans-serif; background:#1d1d1f; color:#fff; display:flex; align-items:center; justify-content:center; min-height:100vh; text-align:center; padding:24px;">
+  <div style="max-width:320px;">
+    <div style="font-size:2rem; font-weight:600; margin-bottom:12px;">Task Pulse</div>
+    <div style="font-size:0.95rem; line-height:1.4; color:#cfcfd3; margin-bottom:24px;">
+      App shell is loaded.<br/>Your icons are in place.<br/><br/>
+      Next step: paste the full Task Pulse UI HTML here (the long version I sent) so the app interface shows.
+    </div>
+    <div style="font-size:0.8rem; color:#8a8a8d;">
+      After pushing to GitHub Pages, open it in Chrome and Install App.<br/>
+      You'll get offline mode, dark branding, and the TP icon.
+    </div>
+  </div>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function() {
+        navigator.serviceWorker.register('sw.js');
+      });
+    }
+  </script>
+</body>
+</html>
