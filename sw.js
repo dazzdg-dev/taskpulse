@@ -1,5 +1,5 @@
 // bump CACHE_NAME whenever you deploy so browsers grab fresh files
-const CACHE_NAME = 'taskpulse-cache-v4'; // v4 now
+const CACHE_NAME = 'taskpulse-cache-v5'; // <- bump to v5
 
 const URLS_TO_CACHE = [
   '.',
@@ -32,7 +32,7 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch: serve from cache first, fall back to network
+// Fetch: cache-first fallback-to-network
 self.addEventListener('fetch', (event) => {
   event.respondWith(
     caches.match(event.request).then(response => {
