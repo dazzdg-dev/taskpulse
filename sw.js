@@ -10,14 +10,15 @@ const URLS_TO_CACHE = [
   'TaskPulse_Splash_Powered_By_DarylG.png'
 ];
 
+// Install: cache all core app files
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => cache.addAll(URLS_TO_CACHE))
   );
 });
 
+// Activate: delete old caches so updates actually show
 self.addEventListener('activate', (event) => {
-  // cleanup old caches so updates actually show
   event.waitUntil(
     caches.keys().then(keys => {
       return Promise.all(
@@ -31,6 +32,7 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+// Fetch: serve from cache first, fall back to network
 self.addEventListener('fetch', (event) => {
   event.respondWith(
     caches.match(event.request).then(response => {
