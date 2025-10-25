@@ -10,6 +10,11 @@
   <link rel="apple-touch-icon" sizes="192x192" href="icon-192.png" />
   <link rel="apple-touch-icon" sizes="512x512" href="icon-512.png" />
 
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+
   <style>
     *{box-sizing:border-box;margin:0;padding:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
     body{background:#f4f4f6;max-width:480px;margin:0 auto;color:#1a1a1a}
@@ -73,7 +78,7 @@
 
   <!-- Version marker -->
   <div style="text-align:center;font-size:.7rem;color:#999;padding:4px 0;">
-    build: todays-tasks-v1
+    build: sync-enabled-v1
   </div>
 
   <main>
@@ -118,7 +123,7 @@
       <div class="section-title">Sync between devices</div>
       <p style="font-size:.8rem;margin-bottom:12px;">
         This code links multiple devices to the same Task Pulse list.
-        (Currently offline-only; cloud sync will activate once Firebase keys are added.)
+        Both devices must paste/use the same code. Data is synced using Firebase.
       </p>
       <div>
         <div class="small" style="font-weight:600;">Your Sync Code</div>
@@ -135,89 +140,406 @@
           <button id="joinSyncBtn" class="settings-action">Join</button>
         </div>
       </div>
+      <p class="small" style="margin-top:12px;color:#444;line-height:1.4;">
+        After joining, both devices use the SAME shared list in realtime.
+      </p>
     </section>
   </main>
 
 <script>
+/* ---------------------------
+   0. SPLASH
+----------------------------*/
 function hideSplashScreen(){
   const s=document.getElementById('splash-screen');
-  if(!s)return;setTimeout(()=>s.classList.add('fade-out'),1800);
+  if(!s)return;
+  setTimeout(()=>s.classList.add('fade-out'),1800);
 }
-function loadTasks(){return JSON.parse(localStorage.getItem('tp_tasks')||'[]')}
-function saveTasks(t){localStorage.setItem('tp_tasks',JSON.stringify(t))}
-function todayISO(){const d=new Date();return d.toISOString().slice(0,10)}
-function fmtDate(d){const[a,b,c]=d.split('-');return `${c}-${b}-${a}`}
-function nowTime(){return new Date().toTimeString().slice(0,5)}
-function createTask(o){return{id:'t_'+Math.random().toString(36).slice(2,9),
-  name:o.name,priority:o.priority,status:o.status||'not done',
-  timeCompleted:o.timeCompleted||'',dateAssigned:o.dateAssigned||todayISO()}}
 
-function renderToday(){
-  const list=document.getElementById('todayTaskList');
-  const stats=document.getElementById('todayStats');
-  const tasks=loadTasks().filter(t=>t.dateAssigned===todayISO());
-  const done=tasks.filter(t=>t.status==='done').length;
-  stats.textContent=`${done} / ${tasks.length} done (${tasks.length?Math.round(done/tasks.length*100):0}%)`;
-  list.innerHTML=tasks.map(t=>{
-    const pr=t.priority==='high'?'priority-high':t.priority==='med'?'priority-med':'priority-low';
-    const done=t.status==='done'?'done':'';
-    return `<div class="task-row" data-id="${t.id}">
-      <div class="task-check ${done}" data-role="toggleTask">${done?'✓':''}</div>
-      <div style="flex:1;margin-left:8px;">
-        <div><span class="task-name">${t.name}</span> <span class="priority-pill ${pr}">${t.priority}</span></div>
-        <div class="small">${t.status==='done'?'✔ Done at '+(t.timeCompleted||'—'):'Not done'}</div>
-      </div></div>`;
-  }).join('');
-  list.querySelectorAll('[data-role="toggleTask"]').forEach(c=>c.onclick=()=>{
-    const id=c.closest('.task-row').dataset.id;toggleTask(id)});
+/* ---------------------------
+   1. DATE / UTILITIES
+----------------------------*/
+function todayISO(){
+  const d=new Date();
+  // local YYYY-MM-DD
+  return [
+    d.getFullYear(),
+    String(d.getMonth()+1).padStart(2,"0"),
+    String(d.getDate()).padStart(2,"0")
+  ].join("-");
 }
-function toggleTask(id){
-  const tasks=loadTasks();const i=tasks.findIndex(t=>t.id===id);
-  if(i<0)return;const t=tasks[i];
-  t.status=t.status==='done'?'not done':'done';
-  t.timeCompleted=t.status==='done'?nowTime():'';
-  saveTasks(tasks);renderAll();
+function fmtDate(iso){
+  const[y,m,d]=iso.split("-");
+  return `${d}-${m}-${y}`;
 }
+function nowTime(){
+  const d=new Date();
+  const hh=String(d.getHours()).padStart(2,"0");
+  const mm=String(d.getMinutes()).padStart(2,"0");
+  return `${hh}:${mm}`;
+}
+function shiftDate(iso,days){
+  const[y,m,d]=iso.split("-");
+  const base=new Date(Number(y),Number(m)-1,Number(d));
+  base.setDate(base.getDate()+days);
+  return [
+    base.getFullYear(),
+    String(base.getMonth()+1).padStart(2,"0"),
+    String(base.getDate()).padStart(2,"0")
+  ].join("-");
+}
+
+/* ---------------------------
+   2. LOCAL STORAGE FALLBACK
+----------------------------*/
+function loadTasksLocal(){
+  return JSON.parse(localStorage.getItem('tp_tasks')||'[]');
+}
+function saveTasksLocal(tasks){
+  localStorage.setItem('tp_tasks',JSON.stringify(tasks));
+}
+function getSyncCodeLocal(){
+  return localStorage.getItem('tp_sync_code')||null;
+}
+function setSyncCodeLocal(code){
+  localStorage.setItem('tp_sync_code',code);
+}
+function createTask({name,priority,dateAssigned,status,timeCompleted}){
+  return {
+    id:'t_'+Math.random().toString(36).slice(2,9),
+    name,
+    priority,
+    status:status||'not done',
+    timeCompleted:timeCompleted||'',
+    dateAssigned:dateAssigned||todayISO()
+  };
+}
+
+/* ---------------------------
+   3. FIREBASE SETUP
+----------------------------*/
+
+/*** IMPORTANT:
+     1. Go to Firebase console
+     2. Create project
+     3. Enable Anonymous Auth
+     4. Create Realtime Database
+     5. Paste your config below
+***/
+
+const firebaseConfig = {
+  apiKey: "PASTE_YOUR_apiKey_HERE",
+  authDomain: "PASTE_YOUR_authDomain_HERE",
+  databaseURL: "PASTE_YOUR_databaseURL_HERE",
+  projectId: "PASTE_YOUR_projectId_HERE",
+  storageBucket: "PASTE_YOUR_storageBucket_HERE",
+  messagingSenderId: "PASTE_YOUR_senderId_HERE",
+  appId: "PASTE_YOUR_appId_HERE"
+};
+
+// initialize
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db   = firebase.database();
+
+// current auth user
+let currentUser = null;
+// this is the shared list ID. all devices w/ same code share tasks.
+let activeSyncCode = null;
+
+// reference to the tasks branch in the DB for this sync code
+function tasksRef(){
+  if(!activeSyncCode) return null;
+  return db.ref("tasklists/"+activeSyncCode+"/tasks");
+}
+
+/* ---------------------------
+   4. CLOUD SYNC HELPERS
+----------------------------*/
+
+// pull from cloud to local
+function downloadTasksFromCloud(){
+  if(!tasksRef()) return;
+  tasksRef().once("value").then(snap=>{
+    const data=snap.val()||{};
+    // convert object map -> array
+    const arr=Object.values(data);
+    saveTasksLocal(arr);
+    renderAll();
+  });
+}
+
+// push local to cloud
+function uploadTasksToCloud(){
+  if(!tasksRef()) return;
+  const localTasks=loadTasksLocal();
+  // convert array -> object keyed by id
+  const obj={};
+  for(const t of localTasks){
+    obj[t.id]=t;
+  }
+  tasksRef().set(obj);
+}
+
+// realtime listener
+function startRealtimeSync(){
+  if(!tasksRef()) return;
+  tasksRef().on("value",snap=>{
+    const data=snap.val()||{};
+    const arr=Object.values(data);
+    saveTasksLocal(arr);
+    renderAll();
+  });
+}
+
+/* ---------------------------
+   5. AUTH / SYNC CODE BOOTSTRAP
+----------------------------*/
+function ensureSignedInAnon(){
+  return new Promise((resolve,reject)=>{
+    if(currentUser){
+      resolve(currentUser);
+      return;
+    }
+    auth.signInAnonymously()
+      .then(cred=>{
+        currentUser=cred.user;
+        resolve(currentUser);
+      })
+      .catch(err=>reject(err));
+  });
+}
+
+// pick or create sync code
+function initSyncCode(){
+  // 1. try local stored code
+  let code = getSyncCodeLocal();
+
+  // 2. if none, generate one from uid
+  if(!code){
+    // use user uid prefix so each device is unique initially
+    const short = currentUser && currentUser.uid
+      ? currentUser.uid.slice(0,6)
+      : Math.random().toString(36).slice(2,8);
+    code = "grp-"+short;
+    setSyncCodeLocal(code);
+  }
+
+  activeSyncCode = code;
+  const syncField=document.getElementById("syncCodeDisplay");
+  if(syncField){ syncField.value = activeSyncCode; }
+}
+
+// user taps "Join"
+function joinSyncCode(newCode){
+  if(!newCode) return;
+  activeSyncCode=newCode;
+  setSyncCodeLocal(newCode);
+  const syncField=document.getElementById("syncCodeDisplay");
+  if(syncField){ syncField.value = activeSyncCode; }
+
+  // re-start sync under new code
+  startRealtimeSync();
+  downloadTasksFromCloud();
+  uploadTasksToCloud();
+}
+
+/* ---------------------------
+   6. TASK LIST RENDERING
+----------------------------*/
+function renderHeaderToday(){
+  document.getElementById("todayDate").textContent=fmtDate(todayISO());
+}
+
+// TODAY list
+function renderTodayList(){
+  const listEl   = document.getElementById("todayTaskList");
+  const statsEl  = document.getElementById("todayStats");
+  const allTasks = loadTasksLocal();
+  const today    = todayISO();
+
+  const todaysTasks = allTasks.filter(t=>t.dateAssigned===today);
+  const doneCt      = todaysTasks.filter(t=>t.status==='done').length;
+  const totalCt     = todaysTasks.length;
+  const pct         = totalCt?Math.round((doneCt/totalCt)*100):0;
+
+  statsEl.textContent = `${doneCt} / ${totalCt} done (${pct}%)`;
+
+  listEl.innerHTML = todaysTasks.map(t=>{
+    const done = t.status==='done'?'done':'';
+    const prClass = t.priority==='high'
+      ? 'priority-high'
+      : t.priority==='med'
+      ? 'priority-med'
+      : 'priority-low';
+    return `
+      <div class="task-row" data-id="${t.id}">
+        <div class="task-check ${done}" data-role="toggleTask">${done?'✓':''}</div>
+        <div style="flex:1;margin-left:8px;">
+          <div><span class="task-name">${escapeHTML(t.name)}</span>
+            <span class="priority-pill ${prClass}">${t.priority}</span></div>
+          <div class="small">${
+            t.status==='done'
+              ? '✔ Done at '+(t.timeCompleted||'—')
+              : 'Not done'
+          }</div>
+        </div>
+      </div>`;
+  }).join("");
+
+  listEl.querySelectorAll('[data-role="toggleTask"]').forEach(chk=>{
+    chk.onclick=()=>{
+      const row=chk.closest('.task-row');
+      const id=row.dataset.id;
+      toggleTaskDone(id);
+    };
+  });
+}
+
+// toggle done / not done
+function toggleTaskDone(id){
+  const tasks=loadTasksLocal();
+  const i=tasks.findIndex(t=>t.id===id);
+  if(i<0)return;
+  const task=tasks[i];
+
+  if(task.status==='done'){
+    task.status='not done';
+    task.timeCompleted='';
+  } else {
+    task.status='done';
+    task.timeCompleted=nowTime();
+  }
+
+  saveTasksLocal(tasks);
+  renderAll();
+  uploadTasksToCloud();
+}
+
+// ADD new task
 function addTask(){
-  const n=document.getElementById('newTaskName').value.trim();
-  const p=document.getElementById('newTaskPriority').value;
-  if(!n)return;const ts=loadTasks();ts.push(createTask({name:n,priority:p}));
-  saveTasks(ts);document.getElementById('newTaskName').value='';renderAll();
+  const nameInput=document.getElementById("newTaskName");
+  const prioSel  =document.getElementById("newTaskPriority");
+  const nm=nameInput.value.trim();
+  const pr=prioSel.value;
+  if(!nm)return;
+
+  const tasks=loadTasksLocal();
+  tasks.push(createTask({name:nm,priority:pr}));
+  saveTasksLocal(tasks);
+
+  nameInput.value='';
+  prioSel.value='low';
+
+  renderAll();
+  uploadTasksToCloud();
 }
+
+/* ---------------------------
+   7. HISTORY
+----------------------------*/
+let historyDate = todayISO();
+
 function renderHistory(){
-  const tasks=loadTasks();const d=todayISO();
-  const h=document.getElementById('historyDateLabel');h.textContent=fmtDate(d);
-  const hList=document.getElementById('historyTaskList');
-  hList.innerHTML=tasks.filter(t=>t.dateAssigned===d).map(t=>
-    `<div class="small">• ${t.name} (${t.priority}) — ${t.status}</div>`).join('');
+  const tasks=loadTasksLocal();
+  const dayTasks=tasks.filter(t=>t.dateAssigned===historyDate);
+  const doneCt  =dayTasks.filter(t=>t.status==='done').length;
+  const pct     =dayTasks.length?Math.round((doneCt/dayTasks.length)*100):0;
+
+  document.getElementById("historyDateLabel").textContent=fmtDate(historyDate);
+  document.getElementById("historyStats").textContent=
+    `${doneCt} / ${dayTasks.length} tasks done (${pct}%)`;
+
+  document.getElementById("historyTaskList").innerHTML = dayTasks.map(t=>{
+    return `<div class="small">• ${escapeHTML(t.name)} (${t.priority}) — ${t.status}</div>`;
+  }).join('');
 }
-function signInAnon(){
-  let code=localStorage.getItem('tp_sync_code');
-  if(!code){code='local-'+Math.random().toString(36).slice(2,7);
-    localStorage.setItem('tp_sync_code',code);}
-  document.getElementById('syncCodeDisplay').value=code;
+
+/* ---------------------------
+   8. SYNC UI BINDINGS
+----------------------------*/
+function bindSyncUI(){
+  const copyBtn=document.getElementById("copySyncCodeBtn");
+  const joinBtn=document.getElementById("joinSyncBtn");
+
+  if(copyBtn){
+    copyBtn.onclick=()=>{
+      const field=document.getElementById("syncCodeDisplay");
+      if(field && field.value){
+        navigator.clipboard.writeText(field.value);
+      }
+    };
+  }
+
+  if(joinBtn){
+    joinBtn.onclick=()=>{
+      const field=document.getElementById("syncCodeInput");
+      if(field && field.value.trim()){
+        joinSyncCode(field.value.trim());
+        field.value="";
+      }
+    };
+  }
 }
-function bindSync(){
-  document.getElementById('copySyncCodeBtn').onclick=()=>{
-    navigator.clipboard.writeText(document.getElementById('syncCodeDisplay').value);
-  };
-  document.getElementById('joinSyncBtn').onclick=()=>{
-    const c=document.getElementById('syncCodeInput').value.trim();
-    if(c)localStorage.setItem('tp_sync_code',c);
-  };
+
+/* ---------------------------
+   9. RENDER ALL
+----------------------------*/
+function escapeHTML(str){
+  return str.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]));
 }
 function renderAll(){
-  document.getElementById('todayDate').textContent=fmtDate(todayISO());
-  renderToday();renderHistory();
+  renderHeaderToday();
+  renderTodayList();
+  renderHistory();
 }
+
+/* ---------------------------
+   10. INIT
+----------------------------*/
 function init(){
   hideSplashScreen();
-  document.getElementById('addTaskBtn').onclick=addTask;
-  signInAnon();bindSync();renderAll();
-  if('serviceWorker'in navigator)
+
+  // bind UI basics
+  document.getElementById("addTaskBtn").onclick=addTask;
+
+  // prev / next day for history
+  document.getElementById("prevDayBtn").onclick=()=>{
+    historyDate=shiftDate(historyDate,-1);
+    renderAll();
+  };
+  document.getElementById("nextDayBtn").onclick=()=>{
+    historyDate=shiftDate(historyDate,1);
+    renderAll();
+  };
+
+  bindSyncUI();
+
+  // auth -> sync code -> realtime
+  ensureSignedInAnon()
+    .then(()=>{
+      initSyncCode();          // sets activeSyncCode
+      startRealtimeSync();     // listen for changes
+      downloadTasksFromCloud();// pull first copy
+      uploadTasksToCloud();    // push our local up
+    })
+    .catch(err=>{
+      console.log("auth error, fallback to local only",err);
+      // even if auth fails, local still works
+    })
+    .finally(()=>{
+      renderAll();
+    });
+
+  // service worker (offline install)
+  if('serviceWorker' in navigator){
     navigator.serviceWorker.register('sw.js');
+  }
 }
+
+// go
 init();
 </script>
+
 </body>
 </html>
