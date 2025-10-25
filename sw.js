@@ -1,5 +1,5 @@
 // bump CACHE_NAME whenever you deploy so browsers grab fresh files
-const CACHE_NAME = 'taskpulse-cache-v2';
+const CACHE_NAME = 'taskpulse-cache-v3'; // <- v3 now
 
 const URLS_TO_CACHE = [
   '.',
