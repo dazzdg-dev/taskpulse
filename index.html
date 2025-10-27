@@ -10,10 +10,10 @@
   <link rel="manifest" href="manifest.json" />
   <link rel="apple-touch-icon" sizes="192x192" href="icon-192.png" />
   <link rel="apple-touch-icon" sizes="512x512" href="icon-512.png" />
-  <!-- basic favicon to stop 404 -->
+  <!-- stop favicon 404 -->
   <link rel="icon" type="image/png" href="icon-192.png" />
 
-  <!-- Firebase SDKs (must load BEFORE our script uses `firebase`) -->
+  <!-- Firebase SDKs -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
@@ -56,6 +56,8 @@
       justify-content:space-between;
       margin-bottom:12px;
       align-items:flex-start;
+      flex-wrap:wrap;
+      row-gap:8px;
     }
     .section-title{
       font-size:1rem;
@@ -192,13 +194,23 @@
     /* Stars */
     .stars-line{
       margin-top:4px;
-      font-size:0.9rem;
-      color:#444;
+      font-size:0.95rem;
       user-select:none;
+      display:flex;
+      gap:2px;
     }
     .star-btn{
       cursor:pointer;
-      padding-right:4px;
+      line-height:1;
+      font-size:1rem;
+    }
+    .star-filled{
+      color:#f5c518;           /* "gold" */
+      text-shadow:0 0 6px rgba(245,197,24,.8),
+                  0 0 12px rgba(245,197,24,.5);
+    }
+    .star-empty{
+      color:#bbb;
     }
 
     /* Delete button */
@@ -261,6 +273,20 @@
       min-width:70px;
     }
 
+    /* Clear Completed button */
+    .clear-btn{
+      border-radius:10px;
+      background:#fff;
+      color:#1d1d1f;
+      border:1px solid #cfcfd3;
+      font-size:.8rem;
+      font-weight:500;
+      padding:8px 12px;
+      min-width:110px;
+      margin-top:8px;
+      align-self:flex-start;
+    }
+
     /* History nav buttons */
     .history-nav button{
       background:#fff;
@@ -301,7 +327,7 @@
 
   <!-- BUILD TAG -->
   <div class="build-banner">
-    build: sync-enabled-v2 + stars/delete/rollover
+    build: sync-enabled-v3 + stars/delete/rollover/clear
   </div>
 
   <main>
@@ -309,11 +335,12 @@
     <section id="todaySection" class="glass-card">
       <div class="section-headline">
         <div class="section-title">Today's Tasks</div>
-        <div class="section-sub" id="todayStats">0 / 0 done (0%)</div>
+        <div class="section-sub" id="todayStats">0 / 0 done (0%) · Quality 0%</div>
       </div>
 
       <div id="todayTaskList"></div>
 
+      <!-- buttons: add + clear completed -->
       <div class="add-row">
         <div class="add-top">
           <input id="newTaskName" class="add-input" placeholder="Add task…" />
@@ -324,8 +351,12 @@
           </select>
           <button id="addTaskBtn" class="add-btn">Add</button>
         </div>
+
+        <button id="clearCompletedBtn" class="clear-btn">Clear completed</button>
+
         <div class="small" style="color:#666;">
-          Tasks sync to the shared code and carry forward if unfinished.
+          Tasks sync to the shared code, carry forward if unfinished,
+          and quality stars feed today's %.
         </div>
       </div>
     </section>
@@ -454,12 +485,12 @@
         status: status || 'not done',
         timeCompleted: timeCompleted || '',
         dateAssigned: dateAssigned || todayISO(),
-        rating: (typeof rating === "number" ? rating : 0)
+        rating: (typeof rating === "number" ? rating : 0) // 0..3
       };
     }
 
     /************************************
-     * 3. FIREBASE CONFIG (yours)
+     * 3. FIREBASE CONFIG
      ************************************/
     const firebaseConfig = {
       apiKey: "AIzaSyDXbxWT9viGCGDpPxlzp45QaBr3zUUn2UU",
@@ -477,7 +508,7 @@
     const db   = firebase.database();
 
     let currentUser    = null;
-    let activeSyncCode = null; // shared list id
+    let activeSyncCode = null;
 
     function tasksRef(){
       if(!activeSyncCode) return null;
@@ -568,12 +599,11 @@
     }
 
     /************************************
-     * 6. ROLLOVER (carry unfinished)
+     * 6. ROLLOVER (carry unfinished to today)
      ************************************/
     function rolloverUnfinishedFromYesterday(){
       const today = todayISO();
       const lastRollover = getLastRolloverDate();
-
       if(lastRollover === today){
         return;
       }
@@ -643,7 +673,17 @@
       const tasks = loadTasksLocal();
       const idx   = tasks.findIndex(t=>t.id===id);
       if(idx<0) return;
-      tasks[idx].rating = newRating;
+      tasks[idx].rating = newRating; // 1..3
+      saveTasksLocal(tasks);
+      renderAll();
+      uploadTasksToCloud();
+    }
+
+    function clearCompletedToday(){
+      const today = todayISO();
+      let tasks = loadTasksLocal();
+      const keep = tasks.filter(t => !(t.dateAssigned===today && t.status==="done"));
+      tasks = keep;
       saveTasksLocal(tasks);
       renderAll();
       uploadTasksToCloud();
@@ -672,9 +712,33 @@
     }
 
     /************************************
-     * 8. RENDER UI
+     * 8. STATS / RENDER UI
      ************************************/
     let historyDate = todayISO();
+
+    function calcTodayStats(){
+      const allTasks = loadTasksLocal();
+      const today = todayISO();
+      const todaysTasks = allTasks.filter(t=>t.dateAssigned===today);
+
+      const doneCt  = todaysTasks.filter(t=>t.status==="done").length;
+      const totalCt = todaysTasks.length;
+      const pctDone = totalCt ? Math.round((doneCt/totalCt)*100) : 0;
+
+      // rating avg -> %
+      if (totalCt === 0){
+        return {doneCt,totalCt,pctDone,qualityPct:0};
+      }
+      let sumStars = 0;
+      for(const t of todaysTasks){
+        const r = typeof t.rating === "number" ? t.rating : 0;
+        sumStars += r;
+      }
+      const avg = sumStars / totalCt; // 0..3
+      const qualityPct = Math.round((avg/3)*100);
+
+      return {doneCt,totalCt,pctDone,qualityPct};
+    }
 
     function renderHeaderToday(){
       document.getElementById("todayDate").textContent = fmtDate(todayISO());
@@ -683,21 +747,24 @@
     function renderTodayList(){
       const listEl   = document.getElementById("todayTaskList");
       const statsEl  = document.getElementById("todayStats");
+
+      // stats (includes quality now)
+      const {doneCt,totalCt,pctDone,qualityPct} = calcTodayStats();
+      statsEl.textContent = `${doneCt} / ${totalCt} done (${pctDone}%) · Quality ${qualityPct}%`;
+
       const allTasks = loadTasksLocal();
       const today    = todayISO();
-
       const todaysTasks = allTasks.filter(t=>t.dateAssigned===today);
-      const doneCt      = todaysTasks.filter(t=>t.status==="done").length;
-      const totalCt     = todaysTasks.length;
-      const pct         = totalCt?Math.round((doneCt/totalCt)*100):0;
-
-      statsEl.textContent = `${doneCt} / ${totalCt} done (${pct}%)`;
 
       function starsHTML(task){
         const r = typeof task.rating === "number" ? task.rating : 0;
         let out = '<div class="stars-line">';
         for(let i=1;i<=3;i++){
-          out += `<span class="star-btn" data-role="setRating" data-id="${task.id}" data-rating="${i}">${i<=r ? "★":"☆"}</span>`;
+          const filled = i<=r;
+          out += `<span class="star-btn ${filled?"star-filled":"star-empty"}"
+                       data-role="setRating"
+                       data-id="${task.id}"
+                       data-rating="${i}">${filled?"★":"☆"}</span>`;
         }
         out += '</div>';
         return out;
@@ -777,7 +844,8 @@
 
       document.getElementById("historyTaskList").innerHTML = dayTasks.map(t=>{
         return `<div class="small" style="color:#444;">
-          • ${escapeHTML(t.name)} (${t.priority}) — ${t.status} ${typeof t.rating==="number" ? `[${t.rating}★]` : ""}
+          • ${escapeHTML(t.name)} (${t.priority}) — ${t.status}
+            ${typeof t.rating==="number" ? `[${t.rating}★]` : ""}
         </div>`;
       }).join("");
     }
@@ -788,6 +856,7 @@
     function bindSyncUI(){
       const copyBtn=document.getElementById("copySyncCodeBtn");
       const joinBtn=document.getElementById("joinSyncBtn");
+      const clearBtn=document.getElementById("clearCompletedBtn");
 
       if(copyBtn){
         copyBtn.onclick=()=>{
@@ -807,6 +876,12 @@
           }
         };
       }
+
+      if(clearBtn){
+        clearBtn.onclick=()=>{
+          clearCompletedToday();
+        };
+      }
     }
 
     /************************************
@@ -824,8 +899,7 @@
     function init(){
       hideSplashScreen();
 
-      // bind UI buttons
-      document.getElementById("addTaskBtn").onclick = addTask;
+      // date nav
       document.getElementById("prevDayBtn").onclick = ()=>{
         historyDate = shiftDate(historyDate,-1);
         renderAll();
@@ -834,16 +908,17 @@
         historyDate = shiftDate(historyDate,1);
         renderAll();
       };
+
       bindSyncUI();
 
       // auth → sync → rollover → realtime
       ensureSignedInAnon()
         .then(()=>{
-          initSyncCode();              // set activeSyncCode, show code
-          rolloverUnfinishedFromYesterday(); // copy yesterday's unfinished into today (1/day)
-          startRealtimeSync();         // live listener
-          downloadTasksFromCloud();    // pull shared
-          uploadTasksToCloud();        // push local snapshot
+          initSyncCode();
+          rolloverUnfinishedFromYesterday();
+          startRealtimeSync();
+          downloadTasksFromCloud();
+          uploadTasksToCloud();
         })
         .catch(err=>{
           console.log("Auth/sync error. Local-only fallback.", err);
