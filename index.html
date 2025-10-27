@@ -10,7 +10,6 @@
   <link rel="manifest" href="manifest.json" />
   <link rel="apple-touch-icon" sizes="192x192" href="icon-192.png" />
   <link rel="apple-touch-icon" sizes="512x512" href="icon-512.png" />
-  <!-- stop favicon 404 -->
   <link rel="icon" type="image/png" href="icon-192.png" />
 
   <!-- Firebase SDKs -->
@@ -131,8 +130,6 @@
 
     /* Task row */
     .task-row{
-      display:flex;
-      justify-content:space-between;
       background:#fff;
       border:1px solid #e4e4e7;
       border-radius:12px;
@@ -140,6 +137,19 @@
       margin-bottom:10px;
       color:#1a1a1a;
     }
+    .task-topline{
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-start;
+      gap:10px;
+    }
+    .task-left{
+      display:flex;
+      align-items:flex-start;
+      gap:10px;
+      flex:1;
+    }
+
     .task-check{
       width:20px;
       height:20px;
@@ -153,11 +163,18 @@
       line-height:1;
       cursor:pointer;
       user-select:none;
+      flex-shrink:0;
     }
     .task-check.done{
       background:#1d1d1f;
       color:#fff;
     }
+
+    .task-main{
+      flex:1;
+      min-width:0;
+    }
+
     .task-name{
       font-weight:600;
       color:#111;
@@ -185,19 +202,22 @@
       background:#d9d9d9;
       color:#1a1a1a;
     }
+
     .task-meta{
       font-size:.7rem;
       color:#444;
       line-height:1.4;
+      margin-top:2px;
     }
 
     /* Stars */
     .stars-line{
-      margin-top:4px;
+      margin-top:6px;
       font-size:0.95rem;
       user-select:none;
       display:flex;
       gap:2px;
+      flex-wrap:nowrap;
     }
     .star-btn{
       cursor:pointer;
@@ -205,7 +225,7 @@
       font-size:1rem;
     }
     .star-filled{
-      color:#f5c518;           /* "gold" */
+      color:#f5c518;
       text-shadow:0 0 6px rgba(245,197,24,.8),
                   0 0 12px rgba(245,197,24,.5);
     }
@@ -213,15 +233,81 @@
       color:#bbb;
     }
 
-    /* Delete button */
-    .delete-btn{
+    /* Row actions (delete / add img / remove img) */
+    .task-actions{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      margin-top:10px;
+      font-size:.75rem;
+    }
+    .action-btn{
       background:#fff;
       color:#1d1d1f;
       border:1px solid #cfcfd3;
-      min-width:44px;
-      min-height:36px;
-      font-size:.8rem;
       border-radius:10px;
+      padding:8px 10px;
+      line-height:1;
+      font-size:.75rem;
+      font-weight:500;
+      min-height:36px;
+    }
+
+    /* Image preview thumb */
+    .task-img-wrapper{
+      margin-top:10px;
+      position:relative;
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      align-items:flex-start;
+    }
+    .task-thumb{
+      width:96px;
+      height:96px;
+      border-radius:8px;
+      border:1px solid #cfcfd3;
+      object-fit:cover;
+      background:#000;
+      cursor:pointer;
+    }
+
+    /* Fullscreen image overlay */
+    #imgOverlay{
+      position:fixed;
+      inset:0;
+      background:rgba(0,0,0,0.9);
+      display:none;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      padding:16px;
+      z-index:99999;
+    }
+    #imgOverlayInner{
+      max-width:90vw;
+      max-height:70vh;
+      border-radius:12px;
+      overflow:hidden;
+      box-shadow:0 30px 80px rgba(0,0,0,.8),
+                 0 0 60px rgba(89,102,255,.4);
+      background:#000;
+    }
+    #imgOverlayInner img{
+      display:block;
+      width:100%;
+      height:auto;
+    }
+    #imgOverlayClose{
+      margin-top:16px;
+      background:#fff;
+      color:#1d1d1f;
+      border:1px solid #cfcfd3;
+      border-radius:10px;
+      padding:10px 16px;
+      font-size:.8rem;
+      font-weight:500;
+      line-height:1;
     }
 
     /* Add task widget */
@@ -285,6 +371,7 @@
       min-width:110px;
       margin-top:8px;
       align-self:flex-start;
+      line-height:1.2;
     }
 
     /* History nav buttons */
@@ -314,6 +401,14 @@
 </head>
 
 <body>
+  <!-- IMAGE OVERLAY (fullscreen preview) -->
+  <div id="imgOverlay">
+    <div id="imgOverlayInner">
+      <img id="imgOverlayImg" src="" alt="Preview"/>
+    </div>
+    <button id="imgOverlayClose">Close ×</button>
+  </div>
+
   <!-- SPLASH -->
   <div id="splash-screen">
     <img src="TaskPulse_Splash_Powered_By_DarylG.png" alt="Task Pulse Splash" />
@@ -327,7 +422,7 @@
 
   <!-- BUILD TAG -->
   <div class="build-banner">
-    build: sync-enabled-v3 + stars/delete/rollover/clear
+    build: sync-enabled-v4 + images/stars/quality/clear/rollover
   </div>
 
   <main>
@@ -340,7 +435,6 @@
 
       <div id="todayTaskList"></div>
 
-      <!-- buttons: add + clear completed -->
       <div class="add-row">
         <div class="add-top">
           <input id="newTaskName" class="add-input" placeholder="Add task…" />
@@ -357,6 +451,7 @@
         <div class="small" style="color:#666;">
           Tasks sync to the shared code, carry forward if unfinished,
           and quality stars feed today's %.
+          Images are synced too.
         </div>
       </div>
     </section>
@@ -477,7 +572,7 @@
       localStorage.setItem('tp_last_rollover', d);
     }
 
-    function createTask({name,priority,dateAssigned,status,timeCompleted,rating}) {
+    function createTask({name,priority,dateAssigned,status,timeCompleted,rating,imgData}) {
       return {
         id:'t_'+Math.random().toString(36).slice(2,9),
         name,
@@ -485,7 +580,8 @@
         status: status || 'not done',
         timeCompleted: timeCompleted || '',
         dateAssigned: dateAssigned || todayISO(),
-        rating: (typeof rating === "number" ? rating : 0) // 0..3
+        rating: (typeof rating === "number" ? rating : 0), // 0..3
+        imgData: imgData || "" // base64 preview
       };
     }
 
@@ -599,7 +695,103 @@
     }
 
     /************************************
-     * 6. ROLLOVER (carry unfinished to today)
+     * 6. IMAGE HANDLING (resize, attach, remove, preview)
+     ************************************/
+    let currentImageTargetTaskId = null; // which task we're attaching to
+
+    // open file picker for a task
+    function requestImageForTask(taskId){
+      currentImageTargetTaskId = taskId;
+      const picker = document.getElementById("hiddenFileInput");
+      picker.value = ""; // reset so same file can be chosen twice
+      picker.click();
+    }
+
+    // after user picks a file
+    async function handleChosenFile(file){
+      if(!file || !currentImageTargetTaskId) return;
+      const dataUrl = await resizeImageToDataURL(file, 1000); // max dimension ~1000px for readability
+      attachImageToTask(currentImageTargetTaskId, dataUrl);
+      currentImageTargetTaskId = null;
+    }
+
+    // resize image down to keep sync fast, keep text readable
+    function resizeImageToDataURL(file, maxDim){
+      return new Promise((resolve,reject)=>{
+        const reader = new FileReader();
+        reader.onload = e=>{
+          const img = new Image();
+          img.onload = ()=>{
+            const {canvas,ctx,newW,newH} = createResizedCanvas(img, maxDim);
+            ctx.drawImage(img,0,0,newW,newH);
+            const out = canvas.toDataURL("image/jpeg",0.8); // 80% quality jpeg
+            resolve(out);
+          };
+          img.onerror = reject;
+          img.src = e.target.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function createResizedCanvas(img, maxDim){
+      const canvas = document.createElement("canvas");
+      const ctx    = canvas.getContext("2d");
+      const origW  = img.width;
+      const origH  = img.height;
+
+      let newW = origW;
+      let newH = origH;
+
+      const biggerSide = Math.max(origW, origH);
+      if(biggerSide > maxDim){
+        const scale = maxDim / biggerSide;
+        newW = Math.round(origW * scale);
+        newH = Math.round(origH * scale);
+      }
+
+      canvas.width  = newW;
+      canvas.height = newH;
+      return {canvas,ctx,newW,newH};
+    }
+
+    function attachImageToTask(taskId, dataUrl){
+      const tasks = loadTasksLocal();
+      const idx   = tasks.findIndex(t=>t.id===taskId);
+      if(idx<0) return;
+      tasks[idx].imgData = dataUrl;
+      saveTasksLocal(tasks);
+      renderAll();
+      uploadTasksToCloud();
+    }
+
+    function removeImageFromTask(taskId){
+      const tasks = loadTasksLocal();
+      const idx   = tasks.findIndex(t=>t.id===taskId);
+      if(idx<0) return;
+      tasks[idx].imgData = "";
+      saveTasksLocal(tasks);
+      renderAll();
+      uploadTasksToCloud();
+    }
+
+    // fullscreen preview
+    function openImagePreview(dataUrl){
+      const overlay = document.getElementById("imgOverlay");
+      const imgEl   = document.getElementById("imgOverlayImg");
+      imgEl.src = dataUrl;
+      overlay.style.display = "flex";
+    }
+    function closeImagePreview(){
+      const overlay = document.getElementById("imgOverlay");
+      const imgEl   = document.getElementById("imgOverlayImg");
+      imgEl.src = "";
+      overlay.style.display = "none";
+    }
+
+    /************************************
+     * 7. ROLLOVER (carry unfinished to today)
      ************************************/
     function rolloverUnfinishedFromYesterday(){
       const today = todayISO();
@@ -624,7 +816,8 @@
             dateAssigned: today,
             status: "not done",
             timeCompleted: "",
-            rating: typeof oldTask.rating === "number" ? oldTask.rating : 0
+            rating: typeof oldTask.rating === "number" ? oldTask.rating : 0,
+            imgData: oldTask.imgData || ""
           });
           tasks.push(newTask);
         }
@@ -636,7 +829,7 @@
     }
 
     /************************************
-     * 7. TASK ACTIONS
+     * 8. TASK ACTIONS
      ************************************/
     function escapeHTML(str){
       return str.replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]));
@@ -700,7 +893,8 @@
       tasks.push(createTask({
         name:nm,
         priority:pr,
-        rating:0
+        rating:0,
+        imgData:""
       }));
       saveTasksLocal(tasks);
 
@@ -712,7 +906,7 @@
     }
 
     /************************************
-     * 8. STATS / RENDER UI
+     * 9. STATS / RENDER UI
      ************************************/
     let historyDate = todayISO();
 
@@ -725,10 +919,10 @@
       const totalCt = todaysTasks.length;
       const pctDone = totalCt ? Math.round((doneCt/totalCt)*100) : 0;
 
-      // rating avg -> %
       if (totalCt === 0){
         return {doneCt,totalCt,pctDone,qualityPct:0};
       }
+
       let sumStars = 0;
       for(const t of todaysTasks){
         const r = typeof t.rating === "number" ? t.rating : 0;
@@ -770,6 +964,25 @@
         return out;
       }
 
+      function imgBlockHTML(task){
+        if(!task.imgData) return "";
+        return `
+          <div class="task-img-wrapper">
+            <img
+              class="task-thumb"
+              src="${task.imgData}"
+              data-role="openImg"
+              data-id="${task.id}"
+            />
+            <button
+              class="action-btn"
+              data-role="removeImg"
+              data-id="${task.id}"
+            >Remove Img</button>
+          </div>
+        `;
+      }
+
       listEl.innerHTML = todaysTasks.map(t=>{
         const isDone = t.status==="done";
         const prClass = t.priority==="high"
@@ -780,26 +993,38 @@
 
         return `
           <div class="task-row" data-id="${t.id}">
-            <div style="display:flex;align-items:flex-start;gap:10px;flex:1;">
-              <div class="task-check ${isDone?"done":""}" data-role="toggleTask">${isDone?"✓":""}</div>
-              <div style="flex:1;">
-                <div>
-                  <span class="task-name">${escapeHTML(t.name)}</span>
-                  <span class="priority-pill ${prClass}">${t.priority}</span>
+            <div class="task-topline">
+              <div class="task-left">
+                <div class="task-check ${isDone?"done":""}" data-role="toggleTask">${isDone?"✓":""}</div>
+                <div class="task-main">
+                  <div>
+                    <span class="task-name">${escapeHTML(t.name)}</span>
+                    <span class="priority-pill ${prClass}">${t.priority}</span>
+                  </div>
+                  <div class="task-meta">
+                    ${isDone
+                      ? "✔ Done at " + (t.timeCompleted||"—")
+                      : "Not done"}
+                  </div>
+                  ${starsHTML(t)}
                 </div>
-                <div class="task-meta">
-                  ${isDone
-                    ? "✔ Done at " + (t.timeCompleted||"—")
-                    : "Not done"}
-                </div>
-                ${starsHTML(t)}
+              </div>
+
+              <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end;">
+                <button
+                  class="action-btn"
+                  data-role="deleteTask"
+                >🗑</button>
+
+                <button
+                  class="action-btn"
+                  data-role="addImg"
+                  data-id="${t.id}"
+                >📎 Add Image</button>
               </div>
             </div>
 
-            <button
-              class="delete-btn"
-              data-role="deleteTask"
-            >🗑</button>
+            ${imgBlockHTML(t)}
           </div>
         `;
       }).join("");
@@ -813,7 +1038,7 @@
         };
       });
 
-      // bind delete
+      // bind delete task
       listEl.querySelectorAll('[data-role="deleteTask"]').forEach(btn=>{
         btn.onclick = ()=>{
           const row = btn.closest(".task-row");
@@ -822,12 +1047,41 @@
         };
       });
 
-      // bind rating
+      // bind rating stars
       listEl.querySelectorAll('[data-role="setRating"]').forEach(star=>{
         star.onclick = ()=>{
           const id  = star.getAttribute("data-id");
           const val = Number(star.getAttribute("data-rating"));
           setRating(id, val);
+        };
+      });
+
+      // bind add image
+      listEl.querySelectorAll('[data-role="addImg"]').forEach(btn=>{
+        btn.onclick = ()=>{
+          const id = btn.getAttribute("data-id");
+          requestImageForTask(id);
+        };
+      });
+
+      // bind remove image
+      listEl.querySelectorAll('[data-role="removeImg"]').forEach(btn=>{
+        btn.onclick = ()=>{
+          const id = btn.getAttribute("data-id");
+          removeImageFromTask(id);
+        };
+      });
+
+      // bind open image preview
+      listEl.querySelectorAll('[data-role="openImg"]').forEach(img=>{
+        img.onclick = ()=>{
+          const row = img.closest(".task-row");
+          const id  = row.dataset.id;
+          const tasks = loadTasksLocal();
+          const t = tasks.find(tt=>tt.id===id);
+          if(t && t.imgData){
+            openImagePreview(t.imgData);
+          }
         };
       });
     }
@@ -846,17 +1100,21 @@
         return `<div class="small" style="color:#444;">
           • ${escapeHTML(t.name)} (${t.priority}) — ${t.status}
             ${typeof t.rating==="number" ? `[${t.rating}★]` : ""}
+            ${t.imgData ? "[img]" : ""}
         </div>`;
       }).join("");
     }
 
     /************************************
-     * 9. SYNC UI
+     * 10. SYNC UI + BUTTON BINDINGS
      ************************************/
     function bindSyncUI(){
       const copyBtn=document.getElementById("copySyncCodeBtn");
       const joinBtn=document.getElementById("joinSyncBtn");
       const clearBtn=document.getElementById("clearCompletedBtn");
+      const prevBtn=document.getElementById("prevDayBtn");
+      const nextBtn=document.getElementById("nextDayBtn");
+      const overlayClose=document.getElementById("imgOverlayClose");
 
       if(copyBtn){
         copyBtn.onclick=()=>{
@@ -882,10 +1140,37 @@
           clearCompletedToday();
         };
       }
+
+      if(prevBtn){
+        prevBtn.onclick=()=>{
+          historyDate = shiftDate(historyDate,-1);
+          renderAll();
+        };
+      }
+
+      if(nextBtn){
+        nextBtn.onclick=()=>{
+          historyDate = shiftDate(historyDate,1);
+          renderAll();
+        };
+      }
+
+      if(overlayClose){
+        overlayClose.onclick=()=>{
+          closeImagePreview();
+        };
+      }
+
+      // hidden file input for attaching images
+      const picker = document.getElementById("hiddenFileInput");
+      picker.onchange = ()=>{
+        const file = picker.files && picker.files[0];
+        handleChosenFile(file);
+      };
     }
 
     /************************************
-     * 10. MAIN RENDER
+     * 11. MAIN RENDER
      ************************************/
     function renderAll(){
       document.getElementById("todayDate").textContent = fmtDate(todayISO());
@@ -894,24 +1179,14 @@
     }
 
     /************************************
-     * 11. INIT
+     * 12. INIT
      ************************************/
     function init(){
       hideSplashScreen();
 
-      // date nav
-      document.getElementById("prevDayBtn").onclick = ()=>{
-        historyDate = shiftDate(historyDate,-1);
-        renderAll();
-      };
-      document.getElementById("nextDayBtn").onclick = ()=>{
-        historyDate = shiftDate(historyDate,1);
-        renderAll();
-      };
-
       bindSyncUI();
 
-      // auth → sync → rollover → realtime
+      // auth → sync → rollover → realtime → render
       ensureSignedInAnon()
         .then(()=>{
           initSyncCode();
@@ -936,5 +1211,14 @@
 
     init();
   </script>
+
+  <!-- single shared hidden file picker -->
+  <input
+    id="hiddenFileInput"
+    type="file"
+    accept="image/*"
+    capture="environment"
+    style="display:none;"
+  />
 </body>
 </html>
