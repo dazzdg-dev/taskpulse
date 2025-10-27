@@ -1,495 +1,865 @@
-<script>
-  /************************************
-   * 0. SPLASH / ANIMATION
-   ************************************/
-  function hideSplashScreen() {
-    const splash = document.getElementById('splash-screen');
-    if (!splash) return;
-    setTimeout(() => {
-      splash.classList.add('fade-out');
-    }, 1800); // ~1.8s branded moment
-  }
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Task Pulse</title>
+  <meta name="theme-color" content="#0f111a" />
 
-  /************************************
-   * 1. DATE / HELPERS
-   ************************************/
-  function todayISO() {
-    const d = new Date();
-    return [
-      d.getFullYear(),
-      String(d.getMonth()+1).padStart(2,"0"),
-      String(d.getDate()).padStart(2,"0")
-    ].join("-");
-  }
-  function fmtDate(iso) {
-    const [y,m,d] = iso.split("-");
-    return `${d}-${m}-${y}`;
-  }
-  function shiftDate(iso,days){
-    const [y,m,d]=iso.split("-");
-    const base=new Date(Number(y),Number(m)-1,Number(d));
-    base.setDate(base.getDate()+days);
-    return [
-      base.getFullYear(),
-      String(base.getMonth()+1).padStart(2,"0"),
-      String(base.getDate()).padStart(2,"0")
-    ].join("-");
-  }
-  function nowTime() {
-    const d = new Date();
-    const hh = String(d.getHours()).padStart(2,"0");
-    const mm = String(d.getMinutes()).padStart(2,"0");
-    return `${hh}:${mm}`;
-  }
+  <!-- PWA manifest + icons -->
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" sizes="192x192" href="icon-192.png" />
+  <link rel="apple-touch-icon" sizes="512x512" href="icon-512.png" />
+  <!-- basic favicon to stop 404 -->
+  <link rel="icon" type="image/png" href="icon-192.png" />
 
-  /************************************
-   * 2. LOCAL STORAGE BACKUP
-   ************************************/
-  function loadTasksLocal(){
-    return JSON.parse(localStorage.getItem('tp_tasks')||'[]');
-  }
-  function saveTasksLocal(list){
-    localStorage.setItem('tp_tasks',JSON.stringify(list));
-  }
-  function getSyncCodeLocal(){
-    return localStorage.getItem('tp_sync_code')||null;
-  }
-  function setSyncCodeLocal(code){
-    localStorage.setItem('tp_sync_code',code);
-  }
-  function getLastRolloverDate(){
-    return localStorage.getItem('tp_last_rollover')||"";
-  }
-  function setLastRolloverDate(d){
-    localStorage.setItem('tp_last_rollover', d);
-  }
+  <!-- Firebase SDKs (must load BEFORE our script uses `firebase`) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 
-  function createTask({name,priority,dateAssigned,status,timeCompleted,rating}) {
-    return {
-      id:'t_'+Math.random().toString(36).slice(2,9),
-      name,
-      priority,
-      status: status || 'not done',
-      timeCompleted: timeCompleted || '',
-      dateAssigned: dateAssigned || todayISO(),
-      rating: (typeof rating === "number" ? rating : 0) // 0-3 stars
-    };
-  }
-
-  /************************************
-   * 3. FIREBASE CONFIG (already yours)
-   ************************************/
-  const firebaseConfig = {
-    apiKey: "AIzaSyDXbxWT9viGCGDpPxlzp45QaBr3zUUn2UU",
-    authDomain: "taskpulse-9a6ab.firebaseapp.com",
-    databaseURL: "https://taskpulse-9a6ab-default-rtdb.firebaseio.com",
-    projectId: "taskpulse-9a6ab",
-    storageBucket: "taskpulse-9a6ab.firebasestorage.app",
-    messagingSenderId: "92117591983",
-    appId: "1:92117591983:web:dd1d73226dbb112c58f15a",
-    measurementId: "G-SN3T2B2RMY"
-  };
-
-  firebase.initializeApp(firebaseConfig);
-  const auth = firebase.auth();
-  const db   = firebase.database();
-
-  let currentUser    = null;
-  let activeSyncCode = null; // "room" / shared list id
-
-  function tasksRef(){
-    if(!activeSyncCode) return null;
-    return db.ref("tasklists/"+activeSyncCode+"/tasks");
-  }
-
-  /************************************
-   * 4. CLOUD SYNC
-   ************************************/
-  function downloadTasksFromCloud(){
-    if(!tasksRef()) return;
-    tasksRef().once("value").then(snap=>{
-      const data = snap.val() || {};
-      const arr  = Object.values(data);
-      saveTasksLocal(arr);
-      renderAll();
-    });
-  }
-
-  function uploadTasksToCloud(){
-    if(!tasksRef()) return;
-    const localTasks = loadTasksLocal();
-    const obj = {};
-    for(const t of localTasks){
-      obj[t.id] = t;
+  <style>
+    *{
+      box-sizing:border-box;
+      margin:0;
+      padding:0;
+      font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+      -webkit-font-smoothing:antialiased;
     }
-    tasksRef().set(obj);
-  }
-
-  function startRealtimeSync(){
-    if(!tasksRef()) return;
-    tasksRef().on("value", snap => {
-      const data = snap.val() || {};
-      const arr = Object.values(data);
-      saveTasksLocal(arr);
-      renderAll();
-    });
-  }
-
-  /************************************
-   * 5. AUTH + SYNC CODE BOOT
-   ************************************/
-  function ensureSignedInAnon(){
-    return new Promise((resolve,reject)=>{
-      if(currentUser){
-        resolve(currentUser);
-        return;
-      }
-      auth.signInAnonymously()
-        .then(cred=>{
-          currentUser = cred.user;
-          resolve(currentUser);
-        })
-        .catch(err=>reject(err));
-    });
-  }
-
-  function initSyncCode(){
-    // try existing
-    let code = getSyncCodeLocal();
-    if(!code){
-      // make new code from uid prefix
-      const short = currentUser && currentUser.uid
-        ? currentUser.uid.slice(0,6)
-        : Math.random().toString(36).slice(2,8);
-      code = "grp-"+short;
-      setSyncCodeLocal(code);
-    }
-    activeSyncCode = code;
-
-    const syncField = document.getElementById("syncCodeDisplay");
-    if(syncField){
-      syncField.value = activeSyncCode;
-    }
-  }
-
-  function joinSyncCode(newCode){
-    if(!newCode) return;
-    activeSyncCode = newCode;
-    setSyncCodeLocal(newCode);
-
-    const syncField = document.getElementById("syncCodeDisplay");
-    if(syncField){
-      syncField.value = activeSyncCode;
+    body{
+      background:#0f111a;
+      background-image:
+        radial-gradient(circle at 20% 20%, rgba(80,90,255,.16) 0%, rgba(15,17,26,0) 60%),
+        radial-gradient(circle at 80% 30%, rgba(255,0,128,.12) 0%, rgba(15,17,26,0) 60%);
+      background-size:100% 100%;
+      color:#e9e9ef;
+      max-width:480px;
+      margin:0 auto;
     }
 
-    // join shared room
-    startRealtimeSync();
-    downloadTasksFromCloud();
-    uploadTasksToCloud();
-  }
-
-  /************************************
-   * 6. ROLLOVER: carry unfinished tasks to today
-   ************************************/
-  function rolloverUnfinishedFromYesterday(){
-    const today = todayISO();
-    const lastRollover = getLastRolloverDate();
-
-    // Only run once per calendar day
-    if(lastRollover === today){
-      return;
+    main{
+      padding:16px 16px 80px;
     }
 
-    const yesterday = shiftDate(today, -1);
-    const tasks = loadTasksLocal();
-
-    // Check if today already has tasks (so we don't keep cloning if you manually ran join)
-    const todaysTasks = tasks.filter(t => t.dateAssigned === today);
-    // We'll still roll over even if today isn't empty, because you might add morning tasks manually.
-    // We just avoid DUPLICATING same carry-forwards twice in the same day by using tp_last_rollover.
-
-    // Find yesterday's unfinished
-    const unfinished = tasks.filter(t =>
-      t.dateAssigned === yesterday &&
-      t.status !== "done"
-    );
-
-    if(unfinished.length > 0){
-      for(const oldTask of unfinished){
-        const newTask = createTask({
-          name: oldTask.name,
-          priority: oldTask.priority,
-          dateAssigned: today,
-          status: "not done",
-          timeCompleted: "",
-          rating: typeof oldTask.rating === "number" ? oldTask.rating : 0
-        });
-        tasks.push(newTask);
-      }
-      saveTasksLocal(tasks);
-      uploadTasksToCloud(); // push new rolled tasks up so other devices see them
+    .glass-card{
+      background:#ffffff;
+      border:1px solid rgba(255,255,255,0.6);
+      border-radius:16px;
+      box-shadow:0 20px 50px rgba(0,0,0,.5);
+      padding:16px;
+      margin-bottom:20px;
+      color:#1a1a1a;
     }
 
-    setLastRolloverDate(today);
-  }
-
-  /************************************
-   * 7. TASK ACTIONS (done / delete / rate / add)
-   ************************************/
-  function escapeHTML(str){
-    return str.replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]));
-  }
-
-  function toggleTaskDone(id){
-    const tasks = loadTasksLocal();
-    const idx   = tasks.findIndex(t=>t.id===id);
-    if(idx<0) return;
-
-    const task = tasks[idx];
-    if(task.status==="done"){
-      task.status="not done";
-      task.timeCompleted="";
-    } else {
-      task.status="done";
-      task.timeCompleted=nowTime();
+    .section-headline{
+      display:flex;
+      justify-content:space-between;
+      margin-bottom:12px;
+      align-items:flex-start;
+    }
+    .section-title{
+      font-size:1rem;
+      font-weight:600;
+      color:#111;
+    }
+    .section-sub{
+      font-size:.8rem;
+      color:#444;
+      text-align:right;
+      min-width:max-content;
+      padding-left:8px;
+    }
+    .small{
+      font-size:.8rem;
+      color:#666;
     }
 
-    saveTasksLocal(tasks);
-    renderAll();
-    uploadTasksToCloud();
-  }
-
-  function deleteTask(id){
-    let tasks = loadTasksLocal();
-    tasks = tasks.filter(t => t.id !== id);
-    saveTasksLocal(tasks);
-    renderAll();
-    uploadTasksToCloud();
-  }
-
-  function setRating(id, newRating){
-    const tasks = loadTasksLocal();
-    const idx   = tasks.findIndex(t=>t.id===id);
-    if(idx<0) return;
-    tasks[idx].rating = newRating; // 0..3
-    saveTasksLocal(tasks);
-    renderAll();
-    uploadTasksToCloud();
-  }
-
-  function addTask(){
-    const nameInput = document.getElementById("newTaskName");
-    const prioSel   = document.getElementById("newTaskPriority");
-    const nm        = nameInput.value.trim();
-    const pr        = prioSel.value;
-    if(!nm) return;
-
-    const tasks = loadTasksLocal();
-    tasks.push(createTask({
-      name:nm,
-      priority:pr,
-      rating:0
-    }));
-    saveTasksLocal(tasks);
-
-    nameInput.value = "";
-    prioSel.value   = "low";
-
-    renderAll();
-    uploadTasksToCloud();
-  }
-
-  /************************************
-   * 8. RENDER UI (Today + History)
-   ************************************/
-  let historyDate = todayISO();
-
-  function renderHeaderToday(){
-    document.getElementById("todayDate").textContent = fmtDate(todayISO());
-  }
-
-  function renderTodayList(){
-    const listEl   = document.getElementById("todayTaskList");
-    const statsEl  = document.getElementById("todayStats");
-    const allTasks = loadTasksLocal();
-    const today    = todayISO();
-
-    const todaysTasks = allTasks.filter(t=>t.dateAssigned===today);
-    const doneCt      = todaysTasks.filter(t=>t.status==="done").length;
-    const totalCt     = todaysTasks.length;
-    const pct         = totalCt?Math.round((doneCt/totalCt)*100):0;
-
-    statsEl.textContent = `${doneCt} / ${totalCt} done (${pct}%)`;
-
-    // Star rating UI builder
-    function starsHTML(task){
-      const r = typeof task.rating === "number" ? task.rating : 0;
-      // 3 tappable stars: index 1..3
-      let out = '<div class="task-meta" style="margin-top:4px; font-size:0.8rem; color:#444;">';
-      for(let i=1;i<=3;i++){
-        out += `<span data-role="setRating" data-id="${task.id}" data-rating="${i}" style="cursor:pointer;user-select:none;">${i<=r ? "★":"☆"}</span> `;
-      }
-      out += '</div>';
-      return out;
+    /* Splash overlay */
+    #splash-screen{
+      position:fixed;
+      inset:0;
+      background:#0f111a;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      z-index:9999;
+      opacity:1;
+      transition:opacity 1s ease-in-out;
+    }
+    #splash-screen.fade-out{
+      opacity:0;
+      pointer-events:none;
+    }
+    #splash-screen img{
+      width:100%;
+      height:100%;
+      object-fit:cover;
     }
 
-    listEl.innerHTML = todaysTasks.map(t=>{
-      const isDone = t.status==="done";
-      const prClass = t.priority==="high"
-        ? "priority-high"
-        : t.priority==="med"
-        ? "priority-med"
-        : "priority-low";
+    /* Header (glow) */
+    header{
+      background:radial-gradient(circle at 20% 20%,#2f324a 0%,#0f111a 60%);
+      color:#fff;
+      padding:16px;
+      border-bottom:1px solid rgba(255,255,255,0.07);
+      border-radius:0 0 20px 20px;
+      box-shadow:
+        0 30px 80px rgba(0,0,0,.8),
+        0 0 60px rgba(89,102,255,.4);
+    }
+    .today-label{
+      font-size:.8rem;
+      color:#bdbdfd;
+      font-weight:500;
+    }
+    .today-date{
+      color:#fff;
+      font-size:1.1rem;
+      font-weight:600;
+      line-height:1.3;
+    }
 
-      return `
-        <div class="task-row" data-id="${t.id}">
-          <div style="display:flex;align-items:flex-start;gap:10px;flex:1;">
-            <div class="task-check ${isDone?"done":""}" data-role="toggleTask">${isDone?"✓":""}</div>
-            <div style="flex:1;">
-              <div>
-                <span class="task-name">${escapeHTML(t.name)}</span>
-                <span class="priority-pill ${prClass}">${t.priority}</span>
-              </div>
-              <div class="task-meta">
-                ${isDone
-                  ? "✔ Done at " + (t.timeCompleted||"—")
-                  : "Not done"}
-              </div>
-              ${starsHTML(t)}
-            </div>
-          </div>
+    .build-banner{
+      text-align:center;
+      font-size:.7rem;
+      color:#9ca0ff;
+      padding:4px 0 12px;
+      text-shadow:0 0 8px rgba(89,102,255,.6);
+    }
 
-          <button
-            class="settings-action"
-            style="background:#fff;color:#1d1d1f;border:1px solid #cfcfd3;min-width:44px;min-height:36px;font-size:.8rem;border-radius:10px;"
-            data-role="deleteTask"
-          >🗑</button>
+    /* Task row */
+    .task-row{
+      display:flex;
+      justify-content:space-between;
+      background:#fff;
+      border:1px solid #e4e4e7;
+      border-radius:12px;
+      padding:12px;
+      margin-bottom:10px;
+      color:#1a1a1a;
+    }
+    .task-check{
+      width:20px;
+      height:20px;
+      border-radius:6px;
+      border:2px solid #1d1d1f;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size:.7rem;
+      font-weight:600;
+      line-height:1;
+      cursor:pointer;
+      user-select:none;
+    }
+    .task-check.done{
+      background:#1d1d1f;
+      color:#fff;
+    }
+    .task-name{
+      font-weight:600;
+      color:#111;
+      font-size:.9rem;
+      line-height:1.3;
+      word-break:break-word;
+    }
+    .priority-pill{
+      font-size:.7rem;
+      line-height:1.2;
+      font-weight:600;
+      border-radius:6px;
+      padding:2px 6px;
+      text-transform:uppercase;
+    }
+    .priority-high{
+      background:#ff4d4d;
+      color:#fff;
+    }
+    .priority-med{
+      background:#ffb84d;
+      color:#1a1a1a;
+    }
+    .priority-low{
+      background:#d9d9d9;
+      color:#1a1a1a;
+    }
+    .task-meta{
+      font-size:.7rem;
+      color:#444;
+      line-height:1.4;
+    }
+
+    /* Stars */
+    .stars-line{
+      margin-top:4px;
+      font-size:0.9rem;
+      color:#444;
+      user-select:none;
+    }
+    .star-btn{
+      cursor:pointer;
+      padding-right:4px;
+    }
+
+    /* Delete button */
+    .delete-btn{
+      background:#fff;
+      color:#1d1d1f;
+      border:1px solid #cfcfd3;
+      min-width:44px;
+      min-height:36px;
+      font-size:.8rem;
+      border-radius:10px;
+    }
+
+    /* Add task widget */
+    .add-row{
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      background:#f9f9fa;
+      border:1px dashed #cfcfd3;
+      border-radius:12px;
+      padding:12px;
+      margin-top:16px;
+    }
+    .add-top{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      align-items:center;
+      width:100%;
+    }
+    .add-input{
+      flex:1;
+      min-width:120px;
+      border:1px solid #cfcfd3;
+      border-radius:10px;
+      padding:10px 12px;
+      font-size:.9rem;
+      outline:none;
+      background:#fff;
+      color:#1a1a1a;
+    }
+    .priority-select{
+      border:1px solid #cfcfd3;
+      border-radius:10px;
+      padding:10px 12px;
+      font-size:.9rem;
+      background:#fff;
+      color:#1a1a1a;
+      outline:none;
+    }
+    .add-btn{
+      border-radius:10px;
+      background:#1d1d1f;
+      color:#fff;
+      border:1px solid #1d1d1f;
+      font-size:.85rem;
+      font-weight:500;
+      padding:10px 14px;
+      min-width:70px;
+    }
+
+    /* History nav buttons */
+    .history-nav button{
+      background:#fff;
+      border:1px solid #cfcfd3;
+      color:#1d1d1f;
+      padding:8px 10px;
+      border-radius:10px;
+      font-weight:500;
+      min-width:44px;
+      min-height:36px;
+      line-height:1;
+      font-size:1rem;
+    }
+
+    .settings-action{
+      font-size:.8rem;
+      font-weight:500;
+      background:#1d1d1f;
+      color:#fff;
+      border-radius:10px;
+      border:1px solid #1d1d1f;
+      padding:8px 10px;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- SPLASH -->
+  <div id="splash-screen">
+    <img src="TaskPulse_Splash_Powered_By_DarylG.png" alt="Task Pulse Splash" />
+  </div>
+
+  <!-- HEADER -->
+  <header>
+    <div class="today-label">Today</div>
+    <div class="today-date" id="todayDate">--</div>
+  </header>
+
+  <!-- BUILD TAG -->
+  <div class="build-banner">
+    build: sync-enabled-v2 + stars/delete/rollover
+  </div>
+
+  <main>
+    <!-- TODAY -->
+    <section id="todaySection" class="glass-card">
+      <div class="section-headline">
+        <div class="section-title">Today's Tasks</div>
+        <div class="section-sub" id="todayStats">0 / 0 done (0%)</div>
+      </div>
+
+      <div id="todayTaskList"></div>
+
+      <div class="add-row">
+        <div class="add-top">
+          <input id="newTaskName" class="add-input" placeholder="Add task…" />
+          <select id="newTaskPriority" class="priority-select">
+            <option value="high">high</option>
+            <option value="med">med</option>
+            <option value="low" selected>low</option>
+          </select>
+          <button id="addTaskBtn" class="add-btn">Add</button>
         </div>
-      `;
-    }).join("");
+        <div class="small" style="color:#666;">
+          Tasks sync to the shared code and carry forward if unfinished.
+        </div>
+      </div>
+    </section>
 
-    // bind toggle done
-    listEl.querySelectorAll('[data-role="toggleTask"]').forEach(el=>{
-      el.onclick = ()=>{
-        const row = el.closest(".task-row");
-        const id  = row.dataset.id;
-        toggleTaskDone(id);
-      };
-    });
+    <!-- HISTORY -->
+    <section id="screen-history" class="glass-card">
+      <div class="section-headline" style="margin-bottom:16px;">
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          <div class="small" style="color:#444;">Viewing</div>
+          <div id="historyDateLabel" style="font-size:.9rem;font-weight:600;color:#111;">--</div>
+        </div>
+        <div class="history-nav" style="display:flex;gap:8px;">
+          <button id="prevDayBtn">◀</button>
+          <button id="nextDayBtn">▶</button>
+        </div>
+      </div>
 
-    // bind delete
-    listEl.querySelectorAll('[data-role="deleteTask"]').forEach(btn=>{
-      btn.onclick = ()=>{
-        const row = btn.closest(".task-row");
-        const id  = row.dataset.id;
-        deleteTask(id);
-      };
-    });
+      <div class="small" id="historyStats" style="margin-bottom:12px;color:#444;">--</div>
+      <div id="historyTaskList" style="font-size:.9rem;color:#111;"></div>
+    </section>
 
-    // bind rating
-    listEl.querySelectorAll('[data-role="setRating"]').forEach(star=>{
-      star.onclick = ()=>{
-        const id  = star.getAttribute("data-id");
-        const val = Number(star.getAttribute("data-rating"));
-        setRating(id, val);
-      };
-    });
-  }
+    <!-- SYNC -->
+    <section id="screen-settings" class="glass-card">
+      <div class="section-title" style="color:#111;">Sync between devices</div>
 
-  function renderHistory(){
-    const tasks    = loadTasksLocal();
-    const dayTasks = tasks.filter(t=>t.dateAssigned===historyDate);
-    const doneCt   = dayTasks.filter(t=>t.status==="done").length;
-    const pct      = dayTasks.length?Math.round((doneCt/dayTasks.length)*100):0;
+      <div style="max-width:100%; margin-bottom:12px; line-height:1.4; font-size:.8rem; color:#444;">
+        Use the same sync code on multiple phones/tablets.
+        Both devices will share one live task list (Firebase Realtime Database).
+      </div>
 
-    document.getElementById("historyDateLabel").textContent = fmtDate(historyDate);
-    document.getElementById("historyStats").textContent =
-      `${doneCt} / ${dayTasks.length} tasks done (${pct}%)`;
+      <div style="width:100%; margin-bottom:12px;">
+        <div class="small" style="font-weight:600; color:#111; margin-bottom:4px;">Your Sync Code</div>
+        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+          <input id="syncCodeDisplay" class="add-input" style="flex:1; font-family:monospace; font-size:0.8rem;" readonly value="..."/>
+          <button class="settings-action" id="copySyncCodeBtn" style="min-width:70px;">Copy</button>
+        </div>
+        <div class="small" style="color:#666; margin-top:4px; line-height:1.4;">
+          Share this with another device to link them.
+        </div>
+      </div>
 
-    document.getElementById("historyTaskList").innerHTML = dayTasks.map(t=>{
-      return `<div class="small" style="color:#444;">
-        • ${escapeHTML(t.name)} (${t.priority}) — ${t.status} ${typeof t.rating==="number" ? ` [${t.rating}★]` : ""}
-      </div>`;
-    }).join("");
-  }
+      <div style="width:100%;">
+        <div class="small" style="font-weight:600; color:#111; margin-bottom:4px;">Join using Sync Code</div>
+        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+          <input id="syncCodeInput" class="add-input" style="flex:1; font-family:monospace; font-size:0.8rem;" placeholder="paste code here"/>
+          <button class="settings-action" id="joinSyncBtn" style="min-width:70px;">Join</button>
+        </div>
+        <div class="small" style="color:#666; margin-top:4px;">
+          After joining, both devices sync to the same shared list.
+        </div>
+      </div>
+    </section>
+  </main>
 
-  /************************************
-   * 9. SYNC UI BINDINGS
-   ************************************/
-  function bindSyncUI(){
-    const copyBtn=document.getElementById("copySyncCodeBtn");
-    const joinBtn=document.getElementById("joinSyncBtn");
+  <script>
+    /************************************
+     * 0. SPLASH / ANIMATION
+     ************************************/
+    function hideSplashScreen() {
+      const splash = document.getElementById('splash-screen');
+      if (!splash) return;
+      setTimeout(() => {
+        splash.classList.add('fade-out');
+      }, 1800);
+    }
 
-    if(copyBtn){
-      copyBtn.onclick=()=>{
-        const field=document.getElementById("syncCodeDisplay");
-        if(field && field.value){
-          navigator.clipboard.writeText(field.value);
-        }
+    /************************************
+     * 1. DATE / HELPERS
+     ************************************/
+    function todayISO() {
+      const d = new Date();
+      return [
+        d.getFullYear(),
+        String(d.getMonth()+1).padStart(2,"0"),
+        String(d.getDate()).padStart(2,"0")
+      ].join("-");
+    }
+    function fmtDate(iso) {
+      const [y,m,d] = iso.split("-");
+      return `${d}-${m}-${y}`;
+    }
+    function shiftDate(iso,days){
+      const [y,m,d]=iso.split("-");
+      const base=new Date(Number(y),Number(m)-1,Number(d));
+      base.setDate(base.getDate()+days);
+      return [
+        base.getFullYear(),
+        String(base.getMonth()+1).padStart(2,"0"),
+        String(base.getDate()).padStart(2,"0")
+      ].join("-");
+    }
+    function nowTime() {
+      const d = new Date();
+      const hh = String(d.getHours()).padStart(2,"0");
+      const mm = String(d.getMinutes()).padStart(2,"0");
+      return `${hh}:${mm}`;
+    }
+
+    /************************************
+     * 2. LOCAL STORAGE BACKUP
+     ************************************/
+    function loadTasksLocal(){
+      return JSON.parse(localStorage.getItem('tp_tasks')||'[]');
+    }
+    function saveTasksLocal(list){
+      localStorage.setItem('tp_tasks',JSON.stringify(list));
+    }
+    function getSyncCodeLocal(){
+      return localStorage.getItem('tp_sync_code')||null;
+    }
+    function setSyncCodeLocal(code){
+      localStorage.setItem('tp_sync_code',code);
+    }
+    function getLastRolloverDate(){
+      return localStorage.getItem('tp_last_rollover')||"";
+    }
+    function setLastRolloverDate(d){
+      localStorage.setItem('tp_last_rollover', d);
+    }
+
+    function createTask({name,priority,dateAssigned,status,timeCompleted,rating}) {
+      return {
+        id:'t_'+Math.random().toString(36).slice(2,9),
+        name,
+        priority,
+        status: status || 'not done',
+        timeCompleted: timeCompleted || '',
+        dateAssigned: dateAssigned || todayISO(),
+        rating: (typeof rating === "number" ? rating : 0)
       };
     }
 
-    if(joinBtn){
-      joinBtn.onclick=()=>{
-        const field=document.getElementById("syncCodeInput");
-        if(field && field.value.trim()){
-          joinSyncCode(field.value.trim());
-          field.value="";
-        }
-      };
+    /************************************
+     * 3. FIREBASE CONFIG (yours)
+     ************************************/
+    const firebaseConfig = {
+      apiKey: "AIzaSyDXbxWT9viGCGDpPxlzp45QaBr3zUUn2UU",
+      authDomain: "taskpulse-9a6ab.firebaseapp.com",
+      databaseURL: "https://taskpulse-9a6ab-default-rtdb.firebaseio.com",
+      projectId: "taskpulse-9a6ab",
+      storageBucket: "taskpulse-9a6ab.firebasestorage.app",
+      messagingSenderId: "92117591983",
+      appId: "1:92117591983:web:dd1d73226dbb112c58f15a",
+      measurementId: "G-SN3T2B2RMY"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db   = firebase.database();
+
+    let currentUser    = null;
+    let activeSyncCode = null; // shared list id
+
+    function tasksRef(){
+      if(!activeSyncCode) return null;
+      return db.ref("tasklists/"+activeSyncCode+"/tasks");
     }
-  }
 
-  /************************************
-   * 10. RENDER ALL
-   ************************************/
-  function renderAll(){
-    renderHeaderToday();
-    renderTodayList();
-    renderHistory();
-  }
-
-  /************************************
-   * 11. INIT
-   ************************************/
-  function init(){
-    hideSplashScreen();
-
-    // bind UI controls
-    document.getElementById("addTaskBtn").onclick = addTask;
-    document.getElementById("prevDayBtn").onclick = ()=>{
-      historyDate = shiftDate(historyDate,-1);
-      renderAll();
-    };
-    document.getElementById("nextDayBtn").onclick = ()=>{
-      historyDate = shiftDate(historyDate,1);
-      renderAll();
-    };
-    bindSyncUI();
-
-    // sign in, sync, rollover unfinished tasks from yesterday once per day
-    ensureSignedInAnon()
-      .then(()=>{
-        initSyncCode();          // sets activeSyncCode + puts it in the UI
-        rolloverUnfinishedFromYesterday(); // clone unfinished -> today
-        startRealtimeSync();     // live listener to shared room
-        downloadTasksFromCloud();// pull shared tasks
-        uploadTasksToCloud();    // push local snapshot up
-      })
-      .catch(err=>{
-        console.log("Auth/sync error. Local-only fallback.", err);
-        // local still works
-        rolloverUnfinishedFromYesterday();
-      })
-      .finally(()=>{
+    /************************************
+     * 4. CLOUD SYNC
+     ************************************/
+    function downloadTasksFromCloud(){
+      if(!tasksRef()) return;
+      tasksRef().once("value").then(snap=>{
+        const data = snap.val() || {};
+        const arr  = Object.values(data);
+        saveTasksLocal(arr);
         renderAll();
       });
-
-    // service worker for offline
-    if("serviceWorker" in navigator){
-      navigator.serviceWorker.register("sw.js");
     }
-  }
 
-  init();
-</script>
+    function uploadTasksToCloud(){
+      if(!tasksRef()) return;
+      const localTasks = loadTasksLocal();
+      const obj = {};
+      for(const t of localTasks){
+        obj[t.id] = t;
+      }
+      tasksRef().set(obj);
+    }
+
+    function startRealtimeSync(){
+      if(!tasksRef()) return;
+      tasksRef().on("value", snap => {
+        const data = snap.val() || {};
+        const arr = Object.values(data);
+        saveTasksLocal(arr);
+        renderAll();
+      });
+    }
+
+    /************************************
+     * 5. AUTH + SYNC CODE BOOT
+     ************************************/
+    function ensureSignedInAnon(){
+      return new Promise((resolve,reject)=>{
+        if(currentUser){
+          resolve(currentUser);
+          return;
+        }
+        auth.signInAnonymously()
+          .then(cred=>{
+            currentUser = cred.user;
+            resolve(currentUser);
+          })
+          .catch(err=>reject(err));
+      });
+    }
+
+    function initSyncCode(){
+      let code = getSyncCodeLocal();
+      if(!code){
+        const short = currentUser && currentUser.uid
+          ? currentUser.uid.slice(0,6)
+          : Math.random().toString(36).slice(2,8);
+        code = "grp-"+short;
+        setSyncCodeLocal(code);
+      }
+      activeSyncCode = code;
+
+      const syncField = document.getElementById("syncCodeDisplay");
+      if(syncField){
+        syncField.value = activeSyncCode;
+      }
+    }
+
+    function joinSyncCode(newCode){
+      if(!newCode) return;
+      activeSyncCode = newCode;
+      setSyncCodeLocal(newCode);
+
+      const syncField = document.getElementById("syncCodeDisplay");
+      if(syncField){
+        syncField.value = activeSyncCode;
+      }
+
+      startRealtimeSync();
+      downloadTasksFromCloud();
+      uploadTasksToCloud();
+    }
+
+    /************************************
+     * 6. ROLLOVER (carry unfinished)
+     ************************************/
+    function rolloverUnfinishedFromYesterday(){
+      const today = todayISO();
+      const lastRollover = getLastRolloverDate();
+
+      if(lastRollover === today){
+        return;
+      }
+
+      const yesterday = shiftDate(today, -1);
+      const tasks = loadTasksLocal();
+
+      const unfinished = tasks.filter(t =>
+        t.dateAssigned === yesterday &&
+        t.status !== "done"
+      );
+
+      if(unfinished.length > 0){
+        for(const oldTask of unfinished){
+          const newTask = createTask({
+            name: oldTask.name,
+            priority: oldTask.priority,
+            dateAssigned: today,
+            status: "not done",
+            timeCompleted: "",
+            rating: typeof oldTask.rating === "number" ? oldTask.rating : 0
+          });
+          tasks.push(newTask);
+        }
+        saveTasksLocal(tasks);
+        uploadTasksToCloud();
+      }
+
+      setLastRolloverDate(today);
+    }
+
+    /************************************
+     * 7. TASK ACTIONS
+     ************************************/
+    function escapeHTML(str){
+      return str.replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]));
+    }
+
+    function toggleTaskDone(id){
+      const tasks = loadTasksLocal();
+      const idx   = tasks.findIndex(t=>t.id===id);
+      if(idx<0) return;
+
+      const task = tasks[idx];
+      if(task.status==="done"){
+        task.status="not done";
+        task.timeCompleted="";
+      } else {
+        task.status="done";
+        task.timeCompleted=nowTime();
+      }
+
+      saveTasksLocal(tasks);
+      renderAll();
+      uploadTasksToCloud();
+    }
+
+    function deleteTask(id){
+      let tasks = loadTasksLocal();
+      tasks = tasks.filter(t => t.id !== id);
+      saveTasksLocal(tasks);
+      renderAll();
+      uploadTasksToCloud();
+    }
+
+    function setRating(id, newRating){
+      const tasks = loadTasksLocal();
+      const idx   = tasks.findIndex(t=>t.id===id);
+      if(idx<0) return;
+      tasks[idx].rating = newRating;
+      saveTasksLocal(tasks);
+      renderAll();
+      uploadTasksToCloud();
+    }
+
+    function addTask(){
+      const nameInput = document.getElementById("newTaskName");
+      const prioSel   = document.getElementById("newTaskPriority");
+      const nm        = nameInput.value.trim();
+      const pr        = prioSel.value;
+      if(!nm) return;
+
+      const tasks = loadTasksLocal();
+      tasks.push(createTask({
+        name:nm,
+        priority:pr,
+        rating:0
+      }));
+      saveTasksLocal(tasks);
+
+      nameInput.value = "";
+      prioSel.value   = "low";
+
+      renderAll();
+      uploadTasksToCloud();
+    }
+
+    /************************************
+     * 8. RENDER UI
+     ************************************/
+    let historyDate = todayISO();
+
+    function renderHeaderToday(){
+      document.getElementById("todayDate").textContent = fmtDate(todayISO());
+    }
+
+    function renderTodayList(){
+      const listEl   = document.getElementById("todayTaskList");
+      const statsEl  = document.getElementById("todayStats");
+      const allTasks = loadTasksLocal();
+      const today    = todayISO();
+
+      const todaysTasks = allTasks.filter(t=>t.dateAssigned===today);
+      const doneCt      = todaysTasks.filter(t=>t.status==="done").length;
+      const totalCt     = todaysTasks.length;
+      const pct         = totalCt?Math.round((doneCt/totalCt)*100):0;
+
+      statsEl.textContent = `${doneCt} / ${totalCt} done (${pct}%)`;
+
+      function starsHTML(task){
+        const r = typeof task.rating === "number" ? task.rating : 0;
+        let out = '<div class="stars-line">';
+        for(let i=1;i<=3;i++){
+          out += `<span class="star-btn" data-role="setRating" data-id="${task.id}" data-rating="${i}">${i<=r ? "★":"☆"}</span>`;
+        }
+        out += '</div>';
+        return out;
+      }
+
+      listEl.innerHTML = todaysTasks.map(t=>{
+        const isDone = t.status==="done";
+        const prClass = t.priority==="high"
+          ? "priority-high"
+          : t.priority==="med"
+          ? "priority-med"
+          : "priority-low";
+
+        return `
+          <div class="task-row" data-id="${t.id}">
+            <div style="display:flex;align-items:flex-start;gap:10px;flex:1;">
+              <div class="task-check ${isDone?"done":""}" data-role="toggleTask">${isDone?"✓":""}</div>
+              <div style="flex:1;">
+                <div>
+                  <span class="task-name">${escapeHTML(t.name)}</span>
+                  <span class="priority-pill ${prClass}">${t.priority}</span>
+                </div>
+                <div class="task-meta">
+                  ${isDone
+                    ? "✔ Done at " + (t.timeCompleted||"—")
+                    : "Not done"}
+                </div>
+                ${starsHTML(t)}
+              </div>
+            </div>
+
+            <button
+              class="delete-btn"
+              data-role="deleteTask"
+            >🗑</button>
+          </div>
+        `;
+      }).join("");
+
+      // bind done toggle
+      listEl.querySelectorAll('[data-role="toggleTask"]').forEach(el=>{
+        el.onclick = ()=>{
+          const row = el.closest(".task-row");
+          const id  = row.dataset.id;
+          toggleTaskDone(id);
+        };
+      });
+
+      // bind delete
+      listEl.querySelectorAll('[data-role="deleteTask"]').forEach(btn=>{
+        btn.onclick = ()=>{
+          const row = btn.closest(".task-row");
+          const id  = row.dataset.id;
+          deleteTask(id);
+        };
+      });
+
+      // bind rating
+      listEl.querySelectorAll('[data-role="setRating"]').forEach(star=>{
+        star.onclick = ()=>{
+          const id  = star.getAttribute("data-id");
+          const val = Number(star.getAttribute("data-rating"));
+          setRating(id, val);
+        };
+      });
+    }
+
+    function renderHistory(){
+      const tasks    = loadTasksLocal();
+      const dayTasks = tasks.filter(t=>t.dateAssigned===historyDate);
+      const doneCt   = dayTasks.filter(t=>t.status==="done").length;
+      const pct      = dayTasks.length?Math.round((doneCt/dayTasks.length)*100):0;
+
+      document.getElementById("historyDateLabel").textContent = fmtDate(historyDate);
+      document.getElementById("historyStats").textContent =
+        `${doneCt} / ${dayTasks.length} tasks done (${pct}%)`;
+
+      document.getElementById("historyTaskList").innerHTML = dayTasks.map(t=>{
+        return `<div class="small" style="color:#444;">
+          • ${escapeHTML(t.name)} (${t.priority}) — ${t.status} ${typeof t.rating==="number" ? `[${t.rating}★]` : ""}
+        </div>`;
+      }).join("");
+    }
+
+    /************************************
+     * 9. SYNC UI
+     ************************************/
+    function bindSyncUI(){
+      const copyBtn=document.getElementById("copySyncCodeBtn");
+      const joinBtn=document.getElementById("joinSyncBtn");
+
+      if(copyBtn){
+        copyBtn.onclick=()=>{
+          const field=document.getElementById("syncCodeDisplay");
+          if(field && field.value){
+            navigator.clipboard.writeText(field.value);
+          }
+        };
+      }
+
+      if(joinBtn){
+        joinBtn.onclick=()=>{
+          const field=document.getElementById("syncCodeInput");
+          if(field && field.value.trim()){
+            joinSyncCode(field.value.trim());
+            field.value="";
+          }
+        };
+      }
+    }
+
+    /************************************
+     * 10. MAIN RENDER
+     ************************************/
+    function renderAll(){
+      document.getElementById("todayDate").textContent = fmtDate(todayISO());
+      renderTodayList();
+      renderHistory();
+    }
+
+    /************************************
+     * 11. INIT
+     ************************************/
+    function init(){
+      hideSplashScreen();
+
+      // bind UI buttons
+      document.getElementById("addTaskBtn").onclick = addTask;
+      document.getElementById("prevDayBtn").onclick = ()=>{
+        historyDate = shiftDate(historyDate,-1);
+        renderAll();
+      };
+      document.getElementById("nextDayBtn").onclick = ()=>{
+        historyDate = shiftDate(historyDate,1);
+        renderAll();
+      };
+      bindSyncUI();
+
+      // auth → sync → rollover → realtime
+      ensureSignedInAnon()
+        .then(()=>{
+          initSyncCode();              // set activeSyncCode, show code
+          rolloverUnfinishedFromYesterday(); // copy yesterday's unfinished into today (1/day)
+          startRealtimeSync();         // live listener
+          downloadTasksFromCloud();    // pull shared
+          uploadTasksToCloud();        // push local snapshot
+        })
+        .catch(err=>{
+          console.log("Auth/sync error. Local-only fallback.", err);
+          rolloverUnfinishedFromYesterday();
+        })
+        .finally(()=>{
+          renderAll();
+        });
+
+      // PWA offline
+      if("serviceWorker" in navigator){
+        navigator.serviceWorker.register("sw.js");
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>
