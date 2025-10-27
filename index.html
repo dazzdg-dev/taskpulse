@@ -506,7 +506,7 @@
     </section>
   </main>
 
-  <!-- Hidden file picker (moved ABOVE script so it's in DOM before JS runs) -->
+  <!-- Hidden file picker (must exist before script runs) -->
   <input
     id="hiddenFileInput"
     type="file"
@@ -704,28 +704,25 @@
     }
 
     /************************************
-     * 6. IMAGE HANDLING (resize, attach, remove, preview)
+     * 6. IMAGE HANDLING
      ************************************/
-    let currentImageTargetTaskId = null; // which task we're attaching to
+    let currentImageTargetTaskId = null;
 
-    // open file picker for a task
     function requestImageForTask(taskId){
       currentImageTargetTaskId = taskId;
       const picker = document.getElementById("hiddenFileInput");
       if (!picker) return;
-      picker.value = ""; // reset
+      picker.value = "";
       picker.click();
     }
 
-    // after user picks a file
     async function handleChosenFile(file){
       if(!file || !currentImageTargetTaskId) return;
-      const dataUrl = await resizeImageToDataURL(file, 1000); // limit ~1000px
+      const dataUrl = await resizeImageToDataURL(file, 1000);
       attachImageToTask(currentImageTargetTaskId, dataUrl);
       currentImageTargetTaskId = null;
     }
 
-    // resize & compress
     function resizeImageToDataURL(file, maxDim){
       return new Promise((resolve,reject)=>{
         const reader = new FileReader();
@@ -786,7 +783,6 @@
       uploadTasksToCloud();
     }
 
-    // fullscreen preview
     function openImagePreview(dataUrl){
       const overlay = document.getElementById("imgOverlay");
       const imgEl   = document.getElementById("imgOverlayImg");
@@ -801,7 +797,7 @@
     }
 
     /************************************
-     * 7. ROLLOVER (carry unfinished to today)
+     * 7. ROLLOVER
      ************************************/
     function rolloverUnfinishedFromYesterday(){
       const today = todayISO();
@@ -842,7 +838,15 @@
      * 8. TASK ACTIONS
      ************************************/
     function escapeHTML(str){
-      return str.replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c] || c));
+      return str.replace(/[&<>"]/g, c => {
+        const map = {
+          "&":"&amp;",
+          "<":"&lt;",
+          ">":"&gt;",
+          "\"":"&quot;"
+        };
+        return map[c] || c;
+      });
     }
 
     function toggleTaskDone(id){
@@ -876,7 +880,7 @@
       const tasks = loadTasksLocal();
       const idx   = tasks.findIndex(t=>t.id===id);
       if(idx<0) return;
-      tasks[idx].rating = newRating; // 1..3
+      tasks[idx].rating = newRating;
       saveTasksLocal(tasks);
       renderAll();
       uploadTasksToCloud();
@@ -916,7 +920,7 @@
     }
 
     /************************************
-     * 9. STATS / RENDER UI
+     * 9. STATS / RENDER
      ************************************/
     let historyDate = todayISO();
 
@@ -938,7 +942,7 @@
         const r = typeof t.rating === "number" ? t.rating : 0;
         sumStars += r;
       }
-      const avg = sumStars / totalCt; // 0..3
+      const avg = sumStars / totalCt;
       const qualityPct = Math.round((avg/3)*100);
 
       return {doneCt,totalCt,pctDone,qualityPct};
@@ -948,7 +952,6 @@
       const listEl   = document.getElementById("todayTaskList");
       const statsEl  = document.getElementById("todayStats");
 
-      // stats (includes quality now)
       const {doneCt,totalCt,pctDone,qualityPct} = calcTodayStats();
       statsEl.textContent = `${doneCt} / ${totalCt} done (${pctDone}%) · Quality ${qualityPct}%`;
 
@@ -1112,7 +1115,7 @@
     }
 
     /************************************
-     * 10. SYNC UI + BUTTON BINDINGS
+     * 10. SYNC UI / BUTTONS
      ************************************/
     function bindSyncUI(){
       const copyBtn=document.getElementById("copySyncCodeBtn");
@@ -1121,6 +1124,8 @@
       const prevBtn=document.getElementById("prevDayBtn");
       const nextBtn=document.getElementById("nextDayBtn");
       const overlayClose=document.getElementById("imgOverlayClose");
+      const addBtn=document.getElementById("addTaskBtn");
+      const picker=document.getElementById("hiddenFileInput");
 
       if(copyBtn){
         copyBtn.onclick=()=>{
@@ -1167,19 +1172,15 @@
         };
       }
 
-      // hidden file input for attaching images
-      const picker = document.getElementById("hiddenFileInput");
-      if (picker) {
+      if(addBtn){
+        addBtn.onclick = addTask;
+      }
+
+      if(picker){
         picker.onchange = ()=>{
           const file = picker.files && picker.files[0];
           handleChosenFile(file);
         };
-      }
-
-      // add button (new task)
-      const addBtn = document.getElementById("addTaskBtn");
-      if(addBtn){
-        addBtn.onclick = addTask;
       }
     }
 
@@ -1200,7 +1201,6 @@
 
       bindSyncUI();
 
-      // auth → sync → rollover → realtime → render
       ensureSignedInAnon()
         .then(()=>{
           initSyncCode();
