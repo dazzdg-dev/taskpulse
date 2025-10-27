@@ -182,6 +182,7 @@
       line-height:1.3;
       word-break:break-word;
     }
+
     .priority-pill{
       font-size:.7rem;
       line-height:1.2;
@@ -189,6 +190,7 @@
       border-radius:6px;
       padding:2px 6px;
       text-transform:uppercase;
+      margin-left:4px;
     }
     .priority-high{
       background:#ff4d4d;
@@ -201,6 +203,18 @@
     .priority-low{
       background:#d9d9d9;
       color:#1a1a1a;
+    }
+
+    .overdue-pill{
+      font-size:.7rem;
+      line-height:1.2;
+      font-weight:600;
+      border-radius:6px;
+      padding:2px 6px;
+      background:#fff1a8;
+      color:#1a1a1a;
+      border:1px solid #f5d000;
+      margin-left:4px;
     }
 
     .task-meta{
@@ -233,14 +247,7 @@
       color:#bbb;
     }
 
-    /* Row actions (delete / add img / remove img) */
-    .task-actions{
-      display:flex;
-      flex-wrap:wrap;
-      gap:8px;
-      margin-top:10px;
-      font-size:.75rem;
-    }
+    /* Row actions (delete only now) */
     .action-btn{
       background:#fff;
       color:#1d1d1f;
@@ -251,63 +258,6 @@
       font-size:.75rem;
       font-weight:500;
       min-height:36px;
-    }
-
-    /* Image preview thumb */
-    .task-img-wrapper{
-      margin-top:10px;
-      position:relative;
-      display:flex;
-      flex-wrap:wrap;
-      gap:8px;
-      align-items:flex-start;
-    }
-    .task-thumb{
-      width:96px;
-      height:96px;
-      border-radius:8px;
-      border:1px solid #cfcfd3;
-      object-fit:cover;
-      background:#000;
-      cursor:pointer;
-    }
-
-    /* Fullscreen image overlay */
-    #imgOverlay{
-      position:fixed;
-      inset:0;
-      background:rgba(0,0,0,0.9);
-      display:none;
-      flex-direction:column;
-      align-items:center;
-      justify-content:center;
-      padding:16px;
-      z-index:99999;
-    }
-    #imgOverlayInner{
-      max-width:90vw;
-      max-height:70vh;
-      border-radius:12px;
-      overflow:hidden;
-      box-shadow:0 30px 80px rgba(0,0,0,.8),
-                 0 0 60px rgba(89,102,255,.4);
-      background:#000;
-    }
-    #imgOverlayInner img{
-      display:block;
-      width:100%;
-      height:auto;
-    }
-    #imgOverlayClose{
-      margin-top:16px;
-      background:#fff;
-      color:#1d1d1f;
-      border:1px solid #cfcfd3;
-      border-radius:10px;
-      padding:10px 16px;
-      font-size:.8rem;
-      font-weight:500;
-      line-height:1;
     }
 
     /* Add task widget */
@@ -401,14 +351,6 @@
 </head>
 
 <body>
-  <!-- IMAGE OVERLAY (fullscreen preview) -->
-  <div id="imgOverlay">
-    <div id="imgOverlayInner">
-      <img id="imgOverlayImg" src="" alt="Preview"/>
-    </div>
-    <button id="imgOverlayClose">Close ×</button>
-  </div>
-
   <!-- SPLASH -->
   <div id="splash-screen">
     <img src="TaskPulse_Splash_Powered_By_DarylG.png" alt="Task Pulse Splash" />
@@ -422,7 +364,7 @@
 
   <!-- BUILD TAG -->
   <div class="build-banner">
-    build: sync-enabled-v4 + images/stars/quality/clear/rollover
+    build: sync-enabled-v5 (no images) + overdue badge + stars/quality/clear/rollover
   </div>
 
   <main>
@@ -451,7 +393,7 @@
         <div class="small" style="color:#666;">
           Tasks sync to the shared code, carry forward if unfinished,
           and quality stars feed today's %.
-          Images are synced too.
+          Overdue tasks will be flagged.
         </div>
       </div>
     </section>
@@ -479,7 +421,7 @@
 
       <div style="max-width:100%; margin-bottom:12px; line-height:1.4; font-size:.8rem; color:#444;">
         Use the same sync code on multiple phones/tablets.
-        Both devices will share one live task list (Firebase Realtime Database).
+        Both devices share one live task list (Firebase Realtime Database).
       </div>
 
       <div style="width:100%; margin-bottom:12px;">
@@ -505,15 +447,6 @@
       </div>
     </section>
   </main>
-
-  <!-- Hidden file picker (must exist before script runs) -->
-  <input
-    id="hiddenFileInput"
-    type="file"
-    accept="image/*"
-    capture="environment"
-    style="display:none;"
-  />
 
   <script>
     /************************************
@@ -581,7 +514,8 @@
       localStorage.setItem('tp_last_rollover', d);
     }
 
-    function createTask({name,priority,dateAssigned,status,timeCompleted,rating,imgData}) {
+    // each task now also tracks overdue: true/false
+    function createTask({name,priority,dateAssigned,status,timeCompleted,rating,overdue}) {
       return {
         id:'t_'+Math.random().toString(36).slice(2,9),
         name,
@@ -589,8 +523,8 @@
         status: status || 'not done',
         timeCompleted: timeCompleted || '',
         dateAssigned: dateAssigned || todayISO(),
-        rating: (typeof rating === "number" ? rating : 0), // 0..3
-        imgData: imgData || "" // base64 preview
+        rating: (typeof rating === "number" ? rating : 0),
+        overdue: !!overdue
       };
     }
 
@@ -704,100 +638,7 @@
     }
 
     /************************************
-     * 6. IMAGE HANDLING
-     ************************************/
-    let currentImageTargetTaskId = null;
-
-    function requestImageForTask(taskId){
-      currentImageTargetTaskId = taskId;
-      const picker = document.getElementById("hiddenFileInput");
-      if (!picker) return;
-      picker.value = "";
-      picker.click();
-    }
-
-    async function handleChosenFile(file){
-      if(!file || !currentImageTargetTaskId) return;
-      const dataUrl = await resizeImageToDataURL(file, 1000);
-      attachImageToTask(currentImageTargetTaskId, dataUrl);
-      currentImageTargetTaskId = null;
-    }
-
-    function resizeImageToDataURL(file, maxDim){
-      return new Promise((resolve,reject)=>{
-        const reader = new FileReader();
-        reader.onload = e=>{
-          const img = new Image();
-          img.onload = ()=>{
-            const {canvas,ctx,newW,newH} = createResizedCanvas(img, maxDim);
-            ctx.drawImage(img,0,0,newW,newH);
-            const out = canvas.toDataURL("image/jpeg",0.8);
-            resolve(out);
-          };
-          img.onerror = reject;
-          img.src = e.target.result;
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-    }
-
-    function createResizedCanvas(img, maxDim){
-      const canvas = document.createElement("canvas");
-      const ctx    = canvas.getContext("2d");
-      const origW  = img.width;
-      const origH  = img.height;
-
-      let newW = origW;
-      let newH = origH;
-
-      const biggerSide = Math.max(origW, origH);
-      if(biggerSide > maxDim){
-        const scale = maxDim / biggerSide;
-        newW = Math.round(origW * scale);
-        newH = Math.round(origH * scale);
-      }
-
-      canvas.width  = newW;
-      canvas.height = newH;
-      return {canvas,ctx,newW,newH};
-    }
-
-    function attachImageToTask(taskId, dataUrl){
-      const tasks = loadTasksLocal();
-      const idx   = tasks.findIndex(t=>t.id===taskId);
-      if(idx<0) return;
-      tasks[idx].imgData = dataUrl;
-      saveTasksLocal(tasks);
-      renderAll();
-      uploadTasksToCloud();
-    }
-
-    function removeImageFromTask(taskId){
-      const tasks = loadTasksLocal();
-      const idx   = tasks.findIndex(t=>t.id===taskId);
-      if(idx<0) return;
-      tasks[idx].imgData = "";
-      saveTasksLocal(tasks);
-      renderAll();
-      uploadTasksToCloud();
-    }
-
-    function openImagePreview(dataUrl){
-      const overlay = document.getElementById("imgOverlay");
-      const imgEl   = document.getElementById("imgOverlayImg");
-      imgEl.src = dataUrl;
-      overlay.style.display = "flex";
-    }
-    function closeImagePreview(){
-      const overlay = document.getElementById("imgOverlay");
-      const imgEl   = document.getElementById("imgOverlayImg");
-      imgEl.src = "";
-      overlay.style.display = "none";
-    }
-
-    /************************************
-     * 7. ROLLOVER
+     * 6. ROLLOVER WITH OVERDUE FLAG
      ************************************/
     function rolloverUnfinishedFromYesterday(){
       const today = todayISO();
@@ -809,6 +650,7 @@
       const yesterday = shiftDate(today, -1);
       const tasks = loadTasksLocal();
 
+      // find tasks from yesterday that are not done
       const unfinished = tasks.filter(t =>
         t.dateAssigned === yesterday &&
         t.status !== "done"
@@ -816,16 +658,10 @@
 
       if(unfinished.length > 0){
         for(const oldTask of unfinished){
-          const newTask = createTask({
-            name: oldTask.name,
-            priority: oldTask.priority,
-            dateAssigned: today,
-            status: "not done",
-            timeCompleted: "",
-            rating: typeof oldTask.rating === "number" ? oldTask.rating : 0,
-            imgData: oldTask.imgData || ""
-          });
-          tasks.push(newTask);
+          // Instead of cloning as a NEW id,
+          // we update that SAME task in-place:
+          oldTask.dateAssigned = today;
+          oldTask.overdue = true; // mark carried forward
         }
         saveTasksLocal(tasks);
         uploadTasksToCloud();
@@ -835,7 +671,7 @@
     }
 
     /************************************
-     * 8. TASK ACTIONS
+     * 7. TASK ACTIONS
      ************************************/
     function escapeHTML(str){
       return str.replace(/[&<>"]/g, c => {
@@ -880,7 +716,7 @@
       const tasks = loadTasksLocal();
       const idx   = tasks.findIndex(t=>t.id===id);
       if(idx<0) return;
-      tasks[idx].rating = newRating;
+      tasks[idx].rating = newRating; // 1..3
       saveTasksLocal(tasks);
       renderAll();
       uploadTasksToCloud();
@@ -908,7 +744,7 @@
         name:nm,
         priority:pr,
         rating:0,
-        imgData:""
+        overdue:false
       }));
       saveTasksLocal(tasks);
 
@@ -920,7 +756,7 @@
     }
 
     /************************************
-     * 9. STATS / RENDER
+     * 8. STATS / RENDER
      ************************************/
     let historyDate = todayISO();
 
@@ -942,7 +778,7 @@
         const r = typeof t.rating === "number" ? t.rating : 0;
         sumStars += r;
       }
-      const avg = sumStars / totalCt;
+      const avg = sumStars / totalCt; // 0..3
       const qualityPct = Math.round((avg/3)*100);
 
       return {doneCt,totalCt,pctDone,qualityPct};
@@ -953,7 +789,8 @@
       const statsEl  = document.getElementById("todayStats");
 
       const {doneCt,totalCt,pctDone,qualityPct} = calcTodayStats();
-      statsEl.textContent = `${doneCt} / ${totalCt} done (${pctDone}%) · Quality ${qualityPct}%`;
+      statsEl.textContent =
+        `${doneCt} / ${totalCt} done (${pctDone}%) · Quality ${qualityPct}%`;
 
       const allTasks = loadTasksLocal();
       const today    = todayISO();
@@ -973,23 +810,12 @@
         return out;
       }
 
-      function imgBlockHTML(task){
-        if(!task.imgData) return "";
-        return `
-          <div class="task-img-wrapper">
-            <img
-              class="task-thumb"
-              src="${task.imgData}"
-              data-role="openImg"
-              data-id="${task.id}"
-            />
-            <button
-              class="action-btn"
-              data-role="removeImg"
-              data-id="${task.id}"
-            >Remove Img</button>
-          </div>
-        `;
+      function overdueHTML(task){
+        if(task.status==="done") return "";
+        if(task.overdue) {
+          return `<span class="overdue-pill">OVERDUE</span>`;
+        }
+        return "";
       }
 
       listEl.innerHTML = todaysTasks.map(t=>{
@@ -1009,6 +835,7 @@
                   <div>
                     <span class="task-name">${escapeHTML(t.name)}</span>
                     <span class="priority-pill ${prClass}">${t.priority}</span>
+                    ${overdueHTML(t)}
                   </div>
                   <div class="task-meta">
                     ${isDone
@@ -1024,16 +851,8 @@
                   class="action-btn"
                   data-role="deleteTask"
                 >🗑</button>
-
-                <button
-                  class="action-btn"
-                  data-role="addImg"
-                  data-id="${t.id}"
-                >📎 Add Image</button>
               </div>
             </div>
-
-            ${imgBlockHTML(t)}
           </div>
         `;
       }).join("");
@@ -1064,35 +883,6 @@
           setRating(id, val);
         };
       });
-
-      // bind add image
-      listEl.querySelectorAll('[data-role="addImg"]').forEach(btn=>{
-        btn.onclick = ()=>{
-          const id = btn.getAttribute("data-id");
-          requestImageForTask(id);
-        };
-      });
-
-      // bind remove image
-      listEl.querySelectorAll('[data-role="removeImg"]').forEach(btn=>{
-        btn.onclick = ()=>{
-          const id = btn.getAttribute("data-id");
-          removeImageFromTask(id);
-        };
-      });
-
-      // bind open image preview
-      listEl.querySelectorAll('[data-role="openImg"]').forEach(img=>{
-        img.onclick = ()=>{
-          const row = img.closest(".task-row");
-          const id  = row.dataset.id;
-          const tasks = loadTasksLocal();
-          const found = tasks.find(tt=>tt.id===id);
-          if(found && found.imgData){
-            openImagePreview(found.imgData);
-          }
-        };
-      });
     }
 
     function renderHistory(){
@@ -1106,16 +896,16 @@
         `${doneCt} / ${dayTasks.length} tasks done (${pct}%)`;
 
       document.getElementById("historyTaskList").innerHTML = dayTasks.map(t=>{
-        return `<div class="small" style="color:#444;">
+        return `<div class="small" style="color:#444; line-height:1.4;">
           • ${escapeHTML(t.name)} (${t.priority}) — ${t.status}
             ${typeof t.rating==="number" ? `[${t.rating}★]` : ""}
-            ${t.imgData ? "[img]" : ""}
+            ${t.overdue && t.status!=="done" ? "[OVERDUE]" : ""}
         </div>`;
       }).join("");
     }
 
     /************************************
-     * 10. SYNC UI / BUTTONS
+     * 9. SYNC UI / BUTTONS
      ************************************/
     function bindSyncUI(){
       const copyBtn=document.getElementById("copySyncCodeBtn");
@@ -1123,9 +913,7 @@
       const clearBtn=document.getElementById("clearCompletedBtn");
       const prevBtn=document.getElementById("prevDayBtn");
       const nextBtn=document.getElementById("nextDayBtn");
-      const overlayClose=document.getElementById("imgOverlayClose");
       const addBtn=document.getElementById("addTaskBtn");
-      const picker=document.getElementById("hiddenFileInput");
 
       if(copyBtn){
         copyBtn.onclick=()=>{
@@ -1166,26 +954,13 @@
         };
       }
 
-      if(overlayClose){
-        overlayClose.onclick=()=>{
-          closeImagePreview();
-        };
-      }
-
       if(addBtn){
         addBtn.onclick = addTask;
-      }
-
-      if(picker){
-        picker.onchange = ()=>{
-          const file = picker.files && picker.files[0];
-          handleChosenFile(file);
-        };
       }
     }
 
     /************************************
-     * 11. MAIN RENDER
+     * 10. MAIN RENDER
      ************************************/
     function renderAll(){
       document.getElementById("todayDate").textContent = fmtDate(todayISO());
@@ -1194,7 +969,7 @@
     }
 
     /************************************
-     * 12. INIT
+     * 11. INIT
      ************************************/
     function init(){
       hideSplashScreen();
