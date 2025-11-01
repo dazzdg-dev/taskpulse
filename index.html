@@ -35,6 +35,8 @@
   button.primary{background:#f1f3fb;color:#161b2d;border-color:#cfd5ea;font-weight:600}
   .muted{color:#a7b0c3}
   .list{list-style:none;margin:0;padding:0}
+
+  /* Task rows */
   .task{display:grid;grid-template-columns:auto 1fr auto auto;gap:10px;align-items:center;padding:10px 0;border-bottom:1px dashed #21253a}
   .task>*{align-self:center}
   .task div:first-of-type{min-height:40px;display:flex;flex-direction:column;justify-content:center}
@@ -48,7 +50,7 @@
   .nav{display:flex;gap:10px;justify-content:flex-end}
   .nav button{width:48px;text-align:center}
 
-  /* Tab bar */
+  /* Tabs */
   .tabs{
     position:sticky;top:0;z-index:50;padding:10px var(--pad) 0;
     background:linear-gradient(180deg, rgba(15,17,26,.98) 0%, rgba(15,17,26,.88) 70%, rgba(15,17,26,0) 100%);
@@ -63,6 +65,11 @@
 
   .tabpage{display:none}
   .tabpage.active{display:block}
+
+  /* History list */
+  .hist-row{display:flex;justify-content:space-between;align-items:center;padding:12px;border-radius:14px;border:1px solid var(--line);background:#101528;margin:10px 0}
+  .hist-row .meta{color:#9fb0d0;font-size:12px;margin-top:4px}
+  .hist-row button{border-radius:10px;padding:8px 10px}
 
   /* Splash */
   #splash{position:fixed;inset:0;z-index:9999;background:#0b0d14;display:flex;align-items:center;justify-content:center;overflow:hidden}
@@ -96,6 +103,7 @@
   <div class="tabs">
     <div class="tabbar">
       <button id="btnTabTasks" class="active" onclick="showTab('tasks')">Tasks</button>
+      <button id="btnTabHistory" onclick="showTab('history')">History</button>
       <button id="btnTabSettings" onclick="showTab('settings')">Settings</button>
     </div>
   </div>
@@ -124,6 +132,24 @@
       <div class="sum" style="margin-top:8px">
         <div id="doneSummary">0 / 0 tasks done (0%)</div><div id="qualitySummary">Quality 0%</div>
       </div>
+    </section>
+  </div>
+
+  <!-- TAB: HISTORY -->
+  <div id="tab-history" class="tabpage">
+    <section class="card">
+      <h3 style="margin:0 0 10px">History</h3>
+      <div class="row" style="gap:8px;margin-bottom:8px">
+        <input id="histSearch" type="text" placeholder="Search text or YYYY-MM-DD…" oninput="renderHistory()" />
+        <select id="histSpan" onchange="renderHistory()">
+          <option value="7">Last 7 days</option>
+          <option value="14">Last 14 days</option>
+          <option value="30" selected>Last 30 days</option>
+          <option value="90">Last 90 days</option>
+          <option value="all">All</option>
+        </select>
+      </div>
+      <div id="histList"></div>
     </section>
   </div>
 
@@ -172,8 +198,9 @@ document.addEventListener('DOMContentLoaded',()=>{
   const last=localStorage.getItem(LS_TAB)||'tasks'; showTab(last);
   // sync code
   const code=localStorage.getItem(LS_SYNC)||''; const inp=document.getElementById('syncCode'); if(inp) inp.value=code;
-  // backup label + predictive
+  // labels & datalist
   tpUpdateLastBackupLabel(); tpRenderDatalist('');
+  renderHistory(); // pre-render once
 });
 
 carryForwardIfNeeded(); renderAll();
@@ -185,6 +212,7 @@ function showTab(id){
   document.querySelectorAll('.tabbar button').forEach(b=>b.classList.remove('active'));
   document.getElementById('btnTab'+cap(id)).classList.add('active');
   localStorage.setItem(LS_TAB,id);
+  if(id==='history') renderHistory();
 }
 function cap(s){return s.charAt(0).toUpperCase()+s.slice(1);}
 
@@ -205,6 +233,7 @@ function delTask(dayKey,id){ if(!confirm('Delete task?')) return; days[dayKey]=e
 function clearCompleted(){ days[viewing]=ensureDay(viewing).filter(x=>!x.done); save(LS_KEY,days); renderAll(); }
 function shiftDay(d){ const dt=new Date(viewing); dt.setDate(dt.getDate()+d); viewing=dt.toISOString().slice(0,10); renderAll(); }
 
+/* Render Tasks area */
 function renderAll(){
   document.getElementById('todayLabel').textContent=fmtHumanDate(TODAY);
   document.getElementById('viewingLabel').textContent=fmtHumanDate(viewing);
@@ -223,6 +252,50 @@ function renderAll(){
   document.getElementById('doneSummary').textContent=`${done} / ${total} tasks done (${pct}%)`;
   document.getElementById('qualitySummary').textContent=`Quality ${qPct}%`;
   document.getElementById('kpiRow').textContent=`${done} / ${total} done (${pct}%) · Quality ${qPct}%`;
+}
+
+/* ===== History tab ===== */
+function renderHistory(){
+  const wrap=document.getElementById('histList'); if(!wrap) return;
+  const q=document.getElementById('histSearch').value.trim().toLowerCase();
+  const spanSel=document.getElementById('histSpan').value;
+  let keys=Object.keys(days||{});
+  // filter by span
+  if(spanSel!=='all'){
+    const span=parseInt(spanSel,10);
+    const min=new Date(); min.setDate(min.getDate()-span);
+    keys=keys.filter(k=>new Date(k)>=min);
+  }
+  keys.sort((a,b)=>new Date(b)-new Date(a)); // newest first
+  // filter by search text (date or task text)
+  if(q){
+    keys=keys.filter(k=>{
+      if(k.includes(q)) return true;
+      const arr=days[k]||[];
+      return arr.some(t=>(t.name||'').toLowerCase().includes(q));
+    });
+  }
+
+  wrap.innerHTML='';
+  if(!keys.length){ wrap.innerHTML='<div class="muted">No history found.</div>'; return; }
+
+  keys.forEach(k=>{
+    const arr=days[k]||[];
+    const total=arr.length, done=arr.filter(t=>t.done).length;
+    const pct=total?Math.round(done/total*100):0;
+    const qsum=arr.filter(t=>t.done).reduce((a,b)=>a+(b.stars||0),0);
+    const qPct=done?Math.round((qsum/(done*3))*100):0;
+
+    const row=document.createElement('div'); row.className='hist-row';
+    const left=document.createElement('div');
+    left.innerHTML=`<div style="font-weight:700">${fmtHumanDate(k)}</div>
+                    <div class="meta">${done}/${total} done • ${pct}% · Quality ${qPct}%</div>`;
+    const right=document.createElement('div');
+    const btn=document.createElement('button'); btn.textContent='Open'; btn.onclick=()=>{ viewing=k; showTab('tasks'); renderAll(); };
+    right.appendChild(btn);
+    row.appendChild(left); row.appendChild(right);
+    wrap.appendChild(row);
+  });
 }
 
 /* Settings helpers */
