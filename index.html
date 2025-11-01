@@ -1,0 +1,312 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Task Pulse</title>
+<link rel="manifest" href="manifest.json" />
+<link rel="icon" href="icon-192.png" sizes="192x192" />
+<meta name="theme-color" content="#0f111a" />
+<style>
+  :root{
+    --bg:#0f111a; --card:#141725; --ink:#e9ecf5; --muted:#a7b0c3; --line:#262a3c;
+    --pill:#1c2034; --pad:14px; --radius:16px; --tap:50px; --fs:16px;
+  }
+  @media (max-width:480px){ :root{ --pad:12px; --radius:14px; --tap:56px; --fs:17px } }
+  *{box-sizing:border-box; -webkit-tap-highlight-color: transparent}
+  html,body{height:100%}
+  body{
+    margin:0; font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    color:var(--ink); font-size:var(--fs);
+    background:
+      radial-gradient(820px 420px at 65% 6%, #2b2542 0%, rgba(15,17,26,0) 55%),
+      radial-gradient(720px 420px at 5% 85%, #14233b 0%, rgba(15,17,26,0) 52%),
+      var(--bg);
+  }
+  .wrap{max-width:820px; margin:0 auto; padding:16px var(--pad) calc(80px + env(safe-area-inset-bottom))}
+  .hero{background:linear-gradient(135deg,#1b2035 0%, #191d30 100%);border:1px solid var(--line); border-radius:20px; padding:18px var(--pad) 14px; margin-bottom:10px; box-shadow:0 10px 30px rgba(0,0,0,.25)}
+  h1{margin:0 0 2px; font-size:24px}
+  .build{color:#9fb0d0;font-size:12px}
+  .kpi{display:flex; gap:12px; align-items:center; color:var(--muted); margin-top:6px; font-size:13px}
+  .card{background:#141725; border:1px solid var(--line); border-radius:var(--radius); padding:var(--pad); margin:12px 0; box-shadow:0 6px 30px rgba(0,0,0,.25)}
+  .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+  input,select,button{border-radius:12px;border:1px solid var(--line);background:#0f1220;color:#e9ecf5; padding:12px 14px;min-height:var(--tap);font-size:var(--fs)}
+  input[type=text]{flex:1 1 200px}
+  button.primary{background:#f1f3fb;color:#161b2d;border-color:#cfd5ea;font-weight:600}
+  .muted{color:#a7b0c3}
+  .list{list-style:none;margin:0;padding:0}
+  .task{display:grid; grid-template-columns:auto 1fr auto auto; gap:10px; align-items:center; padding:10px 0; border-bottom:1px dashed #21253a}
+  .priority{border-radius:999px; padding:6px 10px; font-size:12px; color:#111; background:#ddd}
+  .p-low{background:#8bcaf8} .p-med{background:#ffd28f} .p-high{background:#ff9aa5}
+  .stars button{border:1px solid var(--line); background:var(--pill); color:#ffe27a; border-radius:9px; padding:8px 10px; margin-left:6px}
+  .stars button.on{background:#2a243d}
+  .actions button{border:1px solid var(--line); background:#161a2b; color:#d3dbff; border-radius:9px; padding:8px 10px; margin-left:6px}
+  .actions .del{color:#ff99a3}
+  .sum{display:flex; justify-content:space-between; padding:10px 12px; background:#0e1324; border:1px solid var(--line); border-radius:12px}
+  .nav{display:flex; gap:10px; justify-content:flex-end}
+  .nav button{width:48px; text-align:center}
+
+  /* Splash overlay */
+  #splash{
+    position:fixed; inset:0; z-index:9999; background:#0b0d14;
+    display:flex; align-items:center; justify-content:center; overflow:hidden;
+  }
+  #splash::before{
+    content:""; position:absolute; inset:0;
+    background:url('splash-orange.jpg') center/cover no-repeat;
+    filter:contrast(105%) saturate(110%);
+    transform:scale(1.05);
+    animation: zoomfade 1.8s ease forwards;
+  }
+  #splash .label{
+    position:relative; text-align:center; color:#fff;
+    text-shadow:0 6px 26px rgba(0,0,0,.55);
+    animation: textin .6s ease both .15s;
+  }
+  #splash h2{margin:0; font-size:42px; letter-spacing:.5px}
+  #splash .sub{opacity:.85; margin-top:8px}
+  #splash .foot{position:absolute; bottom:18px; width:100%; text-align:center; font-size:13px; opacity:.85}
+  @keyframes zoomfade{ 0%{opacity:0; transform:scale(1.08)} 15%{opacity:1} 100%{opacity:0; transform:scale(1)} }
+  @keyframes textin{ from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:translateY(0)} }
+  .hide-splash #splash{ display:none; }
+</style>
+</head>
+<body>
+<!-- Splash Intro -->
+<div id="splash">
+  <div class="label">
+    <h2>Task Pulse</h2>
+    <div class="sub">Focus. Sync. Achieve.</div>
+    <div class="foot">Powered by Daryl G</div>
+  </div>
+</div>
+
+<div class="wrap">
+  <header class="hero">
+    <div class="muted">Today</div>
+    <h1 id="todayLabel">—</h1>
+    <div class="build">build: v5 (Firebase-ready) · stars/quality/clear/rollover · backup/restore · predictive</div>
+    <div class="kpi" id="kpiRow">0 / 0 done (0%) · Quality 0%</div>
+  </header>
+
+  <section class="card">
+    <h3 style="margin:0 0 8px">Today's Tasks</h3>
+    <div class="row" style="margin-bottom:10px">
+      <input id="taskInput" type="text" placeholder="Add task…" list="taskSuggestions" autocomplete="off" />
+      <datalist id="taskSuggestions"></datalist>
+      <select id="prioSelect">
+        <option value="low">low</option>
+        <option value="med">med</option>
+        <option value="high">high</option>
+      </select>
+      <button class="primary" onclick="addTask()">Add</button>
+    </div>
+    <div class="row">
+      <button onclick="clearCompleted()">Clear completed</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="row" style="justify-content:space-between">
+      <div>
+        <div class="muted">Viewing</div>
+        <div id="viewingLabel" style="font-weight:600">—</div>
+      </div>
+      <div class="nav">
+        <button onclick="shiftDay(-1)">◀</button>
+        <button onclick="shiftDay(+1)">▶</button>
+      </div>
+    </div>
+
+    <ul id="taskList" class="list" style="margin-top:8px"></ul>
+    <div class="sum" style="margin-top:8px">
+      <div id="doneSummary">0 / 0 tasks done (0%)</div>
+      <div id="qualitySummary">Quality 0%</div>
+    </div>
+  </section>
+
+  <section class="card" id="settings">
+    <h3 style="margin:0 0 8px">Settings</h3>
+    <div class="row" style="margin-bottom:8px">
+      <input id="syncCode" placeholder="Sync code (optional)" style="flex:1 1 260px" />
+      <button onclick="saveSyncCode()">Save code</button>
+    </div>
+    <div class="muted" id="syncHint">Set the same code on two devices to sync via your Firebase project.</div>
+
+    <section class="card" id="backupCard" style="margin-top:12px">
+      <h3 style="margin:0 0 8px">Backup & Restore</h3>
+      <div class="backuprow" style="display:flex; gap:10px; flex-wrap:wrap; align-items:center">
+        <button id="btnBackup" class="primary" onclick="tpDownloadBackup()">⭳  Download Backup</button>
+        <input id="tpRestoreFile" type="file" accept="application/json" style="display:none" />
+        <button id="btnRestore" onclick="document.getElementById('tpRestoreFile').click()">⭱  Import Backup</button>
+      </div>
+      <div id="tpBackupStatus" class="muted" style="margin-top:6px;"></div>
+      <div id="tpLastBackup" class="muted" style="font-size:13px;margin-top:4px;">Last backup: none</div>
+    </section>
+  </section>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script>
+/* Paste your firebaseConfig here and init if you want Firebase sync
+const firebaseConfig = { /* ... */ };
+firebase.initializeApp(firebaseConfig);
+*/
+</script>
+
+<script>
+const LS_KEY = 'tp_days_v1';
+const LS_SYNC = 'tp_sync_code';
+const TODAY = isoToday();
+let days = load(LS_KEY, {});
+let viewing = TODAY;
+
+// Splash timing
+window.addEventListener('load', ()=>{
+  setTimeout(()=>{ document.body.classList.add('hide-splash'); }, 1800);
+});
+
+document.addEventListener('DOMContentLoaded', ()=>{
+  const code = localStorage.getItem(LS_SYNC)||'';
+  const inp = document.getElementById('syncCode'); if(inp) inp.value = code;
+  tpUpdateLastBackupLabel();
+  tpRenderDatalist('');
+});
+
+carryForwardIfNeeded();
+renderAll();
+
+function addTask(){
+  const name = document.getElementById('taskInput').value.trim();
+  const prio = document.getElementById('prioSelect').value;
+  if(!name) return;
+  const t = { id:'t_'+Math.random().toString(36).slice(2,8), name, prio, done:false, stars:0, createdAt:new Date().toISOString() };
+  ensureDay(viewing).unshift(t);
+  save(LS_KEY, days);
+  document.getElementById('taskInput').value='';
+  renderAll(); tpRenderDatalist('');
+}
+function toggleDone(dayKey, id, el){
+  const t = ensureDay(dayKey).find(x=>x.id===id); if(!t) return;
+  t.done = el.checked; t.timeCompleted = t.done ? new Date().toISOString() : '';
+  save(LS_KEY, days); renderAll(); tpRenderDatalist(document.getElementById('taskInput')?.value || '');
+}
+function setStars(dayKey, id, s){
+  const t = ensureDay(dayKey).find(x=>x.id===id); if(!t) return;
+  t.stars = s; save(LS_KEY, days); renderAll(); tpRenderDatalist(document.getElementById('taskInput')?.value || '');
+}
+function editTask(dayKey, id){
+  const t = ensureDay(dayKey).find(x=>x.id===id); if(!t) return;
+  const name = prompt('Edit task', t.name); if(name===null) return;
+  const prio = prompt('Priority (low/med/high)', t.prio)||t.prio;
+  t.name = name.trim(); t.prio = ['low','med','high'].includes(prio)?prio:t.prio;
+  save(LS_KEY, days); renderAll(); tpRenderDatalist(document.getElementById('taskInput')?.value || '');
+}
+function delTask(dayKey, id){
+  if(!confirm('Delete task?')) return;
+  days[dayKey] = ensureDay(dayKey).filter(x=>x.id!==id);
+  save(LS_KEY, days); renderAll(); tpRenderDatalist(document.getElementById('taskInput')?.value || '');
+}
+function clearCompleted(){
+  days[viewing] = ensureDay(viewing).filter(x=>!x.done);
+  save(LS_KEY, days); renderAll(); tpRenderDatalist(document.getElementById('taskInput')?.value || '');
+}
+function shiftDay(delta){
+  const d = new Date(viewing); d.setDate(d.getDate()+delta);
+  viewing = d.toISOString().slice(0,10);
+  renderAll(); tpRenderDatalist(document.getElementById('taskInput')?.value || '');
+}
+
+function renderAll(){
+  document.getElementById('todayLabel').textContent = fmtHumanDate(TODAY);
+  document.getElementById('viewingLabel').textContent = fmtHumanDate(viewing);
+  const list = ensureDay(viewing);
+  const ul = document.getElementById('taskList'); ul.innerHTML='';
+  list.forEach(t=>{
+    const li = document.createElement('li'); li.className='task';
+    const cb = document.createElement('input'); cb.type='checkbox'; cb.checked=t.done;
+    cb.onchange = e=>toggleDone(viewing, t.id, e.target);
+    const center = document.createElement('div');
+    const prioc = t.prio==='low'?'p-low':t.prio==='med'?'p-med':'p-high';
+    center.innerHTML = `<div style="font-weight:600;${t.done?'text-decoration:line-through; opacity:.7':''}">${escapeHtml(t.name)}</div>
+                        <div><span class="priority ${prioc}">${t.prio}</span></div>`;
+    const stars = document.createElement('div'); stars.className='stars';
+    for(let s=1;s<=3;s++){ const b=document.createElement('button'); b.textContent='★'; if(t.stars>=s) b.classList.add('on'); b.onclick=()=>setStars(viewing,t.id,s===t.stars?0:s); stars.appendChild(b); }
+    const act = document.createElement('div'); act.className='actions';
+    const e = document.createElement('button'); e.textContent='✎'; e.onclick=()=>editTask(viewing,t.id);
+    const d = document.createElement('button'); d.textContent='×'; d.className='del'; d.onclick=()=>delTask(viewing,t.id);
+    act.appendChild(e); act.appendChild(d);
+    li.appendChild(cb); li.appendChild(center); li.appendChild(stars); li.appendChild(act);
+    ul.appendChild(li);
+  });
+  const total = list.length, done = list.filter(x=>x.done).length;
+  const pct = total? Math.round(done/total*100):0;
+  const quality = list.filter(x=>x.done).reduce((a,b)=>a+(b.stars||0),0);
+  const qualityPct = done? Math.round((quality/(done*3))*100):0;
+  document.getElementById('doneSummary').textContent = `${done} / ${total} tasks done (${pct}%)`;
+  document.getElementById('qualitySummary').textContent = `Quality ${qualityPct}%`;
+  document.getElementById('kpiRow').textContent = `${done} / ${total} done (${pct}%) · Quality ${qualityPct}%`;
+}
+
+/* Backup/Restore */
+(function tpBindBackupRestore(){
+  const RESTORE_INPUT_ID = 'tpRestoreFile';
+  const STATUS_ID = 'tpBackupStatus';
+  window.tpDownloadBackup = function(){
+    try{
+      const dump = {};
+      for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(/^tp_/.test(k)) dump[k]=localStorage.getItem(k); }
+      const payload = { app:'taskpulse', flavor:'v5-firebase', mode:'simple-backup', exportedAt:new Date().toISOString(), dump };
+      const blob = new Blob([JSON.stringify(payload,null,2)], {type:'application/json'});
+      const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='taskpulse_backup.json'; document.body.appendChild(a); a.click(); a.remove();
+      const now = new Date().toLocaleString(); localStorage.setItem('tp_last_backup', now); tpSetBackupStatus('Backup downloaded.'); tpUpdateLastBackupLabel();
+    }catch(err){ console.error(err); tpSetBackupStatus('Backup failed.'); }
+  };
+  const fileInput=document.getElementById(RESTORE_INPUT_ID);
+  if(fileInput){ fileInput.addEventListener('change', async (e)=>{
+    const f=e.target.files&&e.target.files[0]; if(!f) return;
+    try{
+      const text=await f.text(); const data=JSON.parse(text);
+      if(data && data.dump && typeof data.dump==='object'){ Object.entries(data.dump).forEach(([k,v])=>{ if(/^tp_/.test(k)) localStorage.setItem(k,v); }); }
+      else{
+        if (data.days) localStorage.setItem('tp_days_v1', JSON.stringify(data.days));
+        if (Array.isArray(data.tasks))   localStorage.setItem('tp_tasks', JSON.stringify(data.tasks));
+        if (Array.isArray(data.history)) localStorage.setItem('tp_history', JSON.stringify(data.history));
+        if (typeof data.syncCode==='string') localStorage.setItem('tp_sync_code', data.syncCode);
+      }
+      tpSetBackupStatus('Restore complete. Reloading…'); setTimeout(()=>location.reload(),600);
+    }catch(err){ console.error(err); tpSetBackupStatus('Restore failed (invalid file).'); }
+    finally{ e.target.value=''; }
+  });}
+  function tpSetBackupStatus(msg){ const el=document.getElementById(STATUS_ID); if(el) el.textContent=msg; }
+})();
+
+function tpUpdateLastBackupLabel(){ const label=document.getElementById('tpLastBackup'); if(label){ const val=localStorage.getItem('tp_last_backup') || 'none'; label.textContent = `Last backup: ${val}`; }}
+
+/* Predictive text */
+const SUGGEST_MAX = 10;
+function tpCollectTaskStats(){ const stats=new Map(); for(const dk of Object.keys(days||{})){ for(const t of (days[dk]||[])){ const nm=(t.name||'').trim(); if(!nm) continue; const key=nm.toLowerCase(); const last=new Date(t.createdAt||t.timeCompleted||t.updatedAt||t.date||new Date()).getTime(); if(!stats.has(key)) stats.set(key,{name:nm,count:0,last:0}); const s=stats.get(key); s.count++; s.last=Math.max(s.last,last);} } return stats; }
+function tpRankedNames(stats){ return Array.from(stats.values()).sort((a,b)=>(b.count-a.count)||(b.last-a.last)).map(v=>v.name); }
+function tpGetSuggestions(prefix){ const ranked=tpRankedNames(tpCollectTaskStats()); const p=(prefix||'').trim().toLowerCase(); if(!p) return ranked.slice(0,SUGGEST_MAX); const pref=ranked.filter(n=>n.toLowerCase().startsWith(p)); if(pref.length>=SUGGEST_MAX) return pref.slice(0,SUGGEST_MAX); const rest=ranked.filter(n=>!n.toLowerCase().startsWith(p)&&n.toLowerCase().includes(p)); return [...pref,...rest].slice(0,SUGGEST_MAX); }
+function tpRenderDatalist(prefix){ const dl=document.getElementById('taskSuggestions'); if(!dl) return; const opts=tpGetSuggestions(prefix); dl.innerHTML=opts.map(n=>`<option value="${escapeHtml(n)}"></option>`).join(''); }
+(function(){ const input=document.getElementById('taskInput'); if(!input) return; tpRenderDatalist(''); input.addEventListener('input',()=>tpRenderDatalist(input.value)); input.addEventListener('focus',()=>tpRenderDatalist(input.value)); })();
+
+/* Helpers */
+function isoToday(){ return new Date().toISOString().slice(0,10); }
+function ensureDay(iso){ if(!days[iso]) days[iso]=[]; return days[iso]; }
+function load(k,def){ try{ return JSON.parse(localStorage.getItem(k)||'null') ?? def; }catch(e){return def;} }
+function save(k,v){ localStorage.setItem(k, JSON.stringify(v)); }
+function fmtHumanDate(iso){ const d=new Date(iso); return d.toLocaleDateString(undefined,{day:'2-digit',month:'2-digit',year:'numeric'}); }
+function escapeHtml(s){ return s.replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;', "'":'&#039;' }[m])); }
+function carryForwardIfNeeded(){ const lastOpen=load('tp_last_open',''); const today=isoToday(); if(lastOpen && lastOpen!==today){ const prev=ensureDay(lastOpen).filter(t=>!t.done).map(t=>({...t,id:'t_'+Math.random().toString(36).slice(2,8),createdAt:new Date().toISOString()})); if(prev.length){ ensureDay(today).unshift(...prev); save(LS_KEY, days);} } save('tp_last_open', today); }
+</script>
+
+<script>
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>{ navigator.serviceWorker.register('./sw.js').catch(()=>{}); });
+}
+</script>
+</body>
+</html>
