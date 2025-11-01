@@ -95,7 +95,7 @@
   <header class="hero">
     <div class="muted">Today</div>
     <h1 id="todayLabel">—</h1>
-    <div class="build">build: v5 (Firebase-ready) · stars/quality/clear/rollover · backup/restore · predictive</div>
+    <div class="build">build: v5 (Firebase-ready) · stars/quality/clear/rollover · backup/restore · predictive · realtime sync</div>
     <div class="kpi" id="kpiRow">0 / 0 done (0%) · Quality 0%</div>
   </header>
 
@@ -177,30 +177,38 @@
   </div>
 </div>
 
-<!-- Firebase (leave commented until you paste config) -->
+<!-- Firebase (UNCOMMENT & PASTE YOUR CONFIG BELOW) -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 <script>
-/* Enable when you’re ready to sync
-const firebaseConfig = { /* your keys */ };
+/* ===== PASTE REAL CONFIG, THEN UNCOMMENT =====
+const firebaseConfig = {
+
+  apiKey: "AIzaSyDXbxWT9viGCGDpPxlzp45QaBr3zUUn2UU",
+  authDomain: "taskpulse-9a6ab.firebaseapp.com",
+  databaseURL: "https://taskpulse-9a6ab-default-rtdb.firebaseio.com",
+  projectId: "taskpulse-9a6ab",
+  storageBucket: "taskpulse-9a6ab.firebasestorage.app",
+  messagingSenderId: "92117591983",
+  appId: "1:92117591983:web:dd1d73226dbb112c58f15a",
+  measurementId: "G-SN3T2B2RMY"
+};
 firebase.initializeApp(firebaseConfig);
 */
 </script>
 
 <script>
+/* ========= Core state & utilities ========= */
 const LS_KEY='tp_days_v1', LS_SYNC='tp_sync_code', LS_TAB='tp_last_tab';
 const TODAY=isoToday(); let days=load(LS_KEY,{}); let viewing=TODAY;
 
 window.addEventListener('load',()=>{ setTimeout(()=>document.body.classList.add('hide-splash'),1800); });
 
 document.addEventListener('DOMContentLoaded',()=>{
-  // tabs
   const last=localStorage.getItem(LS_TAB)||'tasks'; showTab(last);
-  // sync code
   const code=localStorage.getItem(LS_SYNC)||''; const inp=document.getElementById('syncCode'); if(inp) inp.value=code;
-  // labels & datalist
   tpUpdateLastBackupLabel(); tpRenderDatalist('');
-  renderHistory(); // pre-render once
+  renderHistory();
 });
 
 carryForwardIfNeeded(); renderAll();
@@ -260,14 +268,12 @@ function renderHistory(){
   const q=document.getElementById('histSearch').value.trim().toLowerCase();
   const spanSel=document.getElementById('histSpan').value;
   let keys=Object.keys(days||{});
-  // filter by span
   if(spanSel!=='all'){
     const span=parseInt(spanSel,10);
     const min=new Date(); min.setDate(min.getDate()-span);
     keys=keys.filter(k=>new Date(k)>=min);
   }
-  keys.sort((a,b)=>new Date(b)-new Date(a)); // newest first
-  // filter by search text (date or task text)
+  keys.sort((a,b)=>new Date(b)-new Date(a));
   if(q){
     keys=keys.filter(k=>{
       if(k.includes(q)) return true;
@@ -275,10 +281,8 @@ function renderHistory(){
       return arr.some(t=>(t.name||'').toLowerCase().includes(q));
     });
   }
-
   wrap.innerHTML='';
   if(!keys.length){ wrap.innerHTML='<div class="muted">No history found.</div>'; return; }
-
   keys.forEach(k=>{
     const arr=days[k]||[];
     const total=arr.length, done=arr.filter(t=>t.done).length;
@@ -335,7 +339,99 @@ function escapeHtml(s){ return s.replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;
 function carryForwardIfNeeded(){ const lastOpen=load('tp_last_open',''); const today=isoToday(); if(lastOpen && lastOpen!==today){ const prev=ensureDay(lastOpen).filter(t=>!t.done).map(t=>({...t,id:'t_'+Math.random().toString(36).slice(2,8),createdAt:new Date().toISOString()})); if(prev.length){ ensureDay(today).unshift(...prev); save(LS_KEY, days);} } save('tp_last_open', today); }
 </script>
 
+<!-- ===== Task Pulse — Firebase Sync (realtime) ===== -->
 <script>
+const TP_UID = (localStorage.getItem('tp_uid') || (() => {
+  const v = 'u_' + Math.random().toString(36).slice(2,10);
+  localStorage.setItem('tp_uid', v);
+  return v;
+})());
+
+let syncRef = null;
+let syncOff = null;
+let writeTimer = null;
+
+/** broadcast local changes (debounced) */
+function notifyLocalChanged(){ debouncedPush(); }
+function debouncedPush(){
+  if (!syncRef) return;
+  clearTimeout(writeTimer);
+  writeTimer = setTimeout(() => {
+    const payload = { days, _meta: { by: TP_UID, at: Date.now() } };
+    syncRef.set(payload).catch(console.warn);
+  }, 250);
+}
+
+/** attach to a code path */
+function attachSync(code){
+  if (!(window.firebase && firebase.apps && firebase.apps.length)) {
+    console.log('[sync] Firebase not initialized — local only');
+    return;
+  }
+  if (!code) return;
+
+  if (syncOff) { syncOff(); syncOff=null; }
+  syncRef = firebase.database().ref(`taskpulse/${code}`);
+
+  // initial merge/seed
+  syncRef.child('days').get().then(snap=>{
+    const remote = snap.val();
+    if (remote && typeof remote === 'object') {
+      days = mergeDays(days, remote);
+      save(LS_KEY, days); renderAll();
+    } else {
+      debouncedPush(); // seed path with our local
+    }
+  }).catch(console.warn);
+
+  const handler = syncRef.on('value', snap=>{
+    const val = snap.val();
+    if (!val || !val.days) return;
+    if (val._meta && val._meta.by === TP_UID) return; // ignore our echo
+    days = mergeDays(days, val.days);
+    save(LS_KEY, days); renderAll();
+  });
+  syncOff = () => syncRef.off('value', handler);
+
+  console.log('[sync] attached', code);
+}
+
+/** merge days by newest task time */
+function mergeDays(localDays, remoteDays){
+  const out = { ...(localDays||{}) };
+  for (const d of Object.keys(remoteDays||{})){
+    if (!out[d]) { out[d] = remoteDays[d]; continue; }
+    const L = out[d] || [], R = remoteDays[d] || [];
+    const stamp = arr => arr.reduce((m,t)=>Math.max(m, new Date(t.timeCompleted||t.createdAt||0).getTime()),0);
+    out[d] = (stamp(R) > stamp(L)) ? R : L;
+  }
+  return out;
+}
+
+/* hook save() so every local change pushes */
+const _save = save;
+save = function(k,v){ _save(k,v); if (k===LS_KEY) notifyLocalChanged(); };
+
+/* wrap settings button to reattach */
+const _saveSyncCodeBtn = window.saveSyncCode;
+window.saveSyncCode = function(){
+  const v = document.getElementById('syncCode').value.trim();
+  localStorage.setItem(LS_SYNC, v);
+  alert('Sync code saved. Use the same code on both devices.');
+  if (syncOff) syncOff();
+  attachSync(v);
+  debouncedPush();
+};
+
+/* auto-attach on load if code exists */
+(function(){ try{
+  const code = localStorage.getItem(LS_SYNC)||'';
+  if (code) attachSync(code);
+}catch(e){console.warn(e);} })();
+</script>
+
+<script>
+/* Service worker for PWA */
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{ navigator.serviceWorker.register('./sw.js').catch(()=>{}); });
 }
