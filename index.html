@@ -11,6 +11,7 @@
   :root{
     --bg:#0f111a; --card:#141725; --ink:#e9ecf5; --muted:#a7b0c3; --line:#262a3c;
     --pill:#1c2034; --pad:14px; --radius:16px; --tap:50px; --fs:16px;
+    --warn:#ffcc66; --good:#76e0a6; --bad:#ff8ea1;
   }
   @media (max-width:480px){ :root{ --pad:12px; --radius:14px; --tap:56px; --fs:17px } }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
@@ -27,7 +28,10 @@
   .hero{background:linear-gradient(135deg,#1b2035 0%, #191d30 100%);border:1px solid var(--line);border-radius:20px;padding:18px var(--pad) 14px;margin-bottom:10px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
   h1{margin:0 0 2px;font-size:24px}
   .build{color:#9fb0d0;font-size:12px}
-  .kpi{display:flex;gap:12px;align-items:center;color:var(--muted);margin-top:6px;font-size:13px}
+  .kpi{display:flex;gap:12px;align-items:center;color:var(--muted);margin-top:6px;font-size:13px;flex-wrap:wrap}
+  .badge{border:1px solid var(--line);background:#101528;padding:6px 10px;border-radius:999px}
+  .badge.good{color:#0d3; border-color:#114; background:#0b1f16}
+  .badge.warn{color:#332000; background:#2b2108; border-color:#46330a}
   .card{background:#141725;border:1px solid var(--line);border-radius:var(--radius);padding:var(--pad);margin:12px 0;box-shadow:0 6px 30px rgba(0,0,0,.25)}
   .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
   input,select,button{border-radius:12px;border:1px solid var(--line);background:#0f1220;color:#e9ecf5;padding:12px 14px;min-height:var(--tap);font-size:var(--fs)}
@@ -71,6 +75,9 @@
   .hist-row .meta{color:#9fb0d0;font-size:12px;margin-top:4px}
   .hist-row button{border-radius:10px;padding:8px 10px}
 
+  /* Warn banner */
+  #carryWarn{display:none;margin:8px 0 0 0;padding:10px 12px;border-radius:12px;border:1px solid #4d3b0e;background:#221a07;color:#ffd890}
+
   /* Splash */
   #splash{position:fixed;inset:0;z-index:9999;background:#0b0d14;display:flex;align-items:center;justify-content:center;overflow:hidden}
   #splash::before{content:"";position:absolute;inset:0;background:url('splash-orange.jpg') center/cover no-repeat;filter:contrast(105%) saturate(110%);transform:scale(1.05);animation:zoomfade 1.8s ease forwards}
@@ -95,8 +102,12 @@
   <header class="hero">
     <div class="muted">Today</div>
     <h1 id="todayLabel">—</h1>
-    <div class="build">build: v5 (Firebase-ready) · stars/quality/clear/rollover · backup/restore · predictive · realtime sync</div>
-    <div class="kpi" id="kpiRow">0 / 0 done (0%) · Quality 0%</div>
+    <div class="build">build: v5 • stars/quality • manual & auto carry-over • backup/restore • predictive • realtime sync</div>
+    <div class="kpi" id="kpiRow">
+      <span>0 / 0 done (0%) · Quality 0%</span>
+      <span id="syncState" class="badge">Local-only</span>
+    </div>
+    <div id="carryWarn"></div>
   </header>
 
   <!-- Tabs -->
@@ -120,7 +131,10 @@
         </select>
         <button class="primary" onclick="addTask()">Add</button>
       </div>
-      <div class="row"><button onclick="clearCompleted()">Clear completed</button></div>
+      <div class="row">
+        <button onclick="clearCompleted()">Clear completed</button>
+        <button onclick="manualCarryOver()" title="Move all incomplete tasks to tomorrow">Carry incomplete → tomorrow</button>
+      </div>
     </section>
 
     <section class="card">
@@ -157,11 +171,14 @@
   <div id="tab-settings" class="tabpage">
     <section class="card">
       <h3 style="margin:0 0 8px">Settings</h3>
+
       <div class="row" style="margin-bottom:8px">
-        <input id="syncCode" placeholder="Sync code (optional)" style="flex:1 1 260px" />
-        <button onclick="saveSyncCode()">Save code</button>
+        <input id="syncCode" placeholder="Sync code" style="flex:1 1 260px" readonly />
+        <button onclick="copySyncCode()">Copy</button>
+        <button onclick="newSyncCode()">New code</button>
+        <button onclick="saveSyncCode()">Save</button>
       </div>
-      <div class="muted" id="syncHint">Set the same code on two devices to sync via your Firebase project.</div>
+      <div class="muted" id="syncHint">Open this site on your second device and use the same code. Sync uses Firebase Realtime Database.</div>
     </section>
 
     <section class="card" id="backupCard">
@@ -181,8 +198,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 <script>
-
-  / ===== PASTE REAL CONFIG, THEN UNCOMMENT =====
+/ ===== Paste real config and UNCOMMENT to enable cloud sync =====
 const firebaseConfig = {
   apiKey: "AIzaSyDXbxWT9viGCGDpPxlzp45QaBr3zUUn2UU",
   authDomain: "taskpulse-9a6ab.firebaseapp.com",
@@ -201,18 +217,21 @@ firebase.initializeApp(firebaseConfig);
 <script>
 /* ========= Core state & utilities ========= */
 const LS_KEY='tp_days_v1', LS_SYNC='tp_sync_code', LS_TAB='tp_last_tab';
+const LS_LAST_OPEN='tp_last_open', LS_LAST_CARRY_COUNT='tp_last_carry_count';
 const TODAY=isoToday(); let days=load(LS_KEY,{}); let viewing=TODAY;
 
 window.addEventListener('load',()=>{ setTimeout(()=>document.body.classList.add('hide-splash'),1800); });
 
 document.addEventListener('DOMContentLoaded',()=>{
   const last=localStorage.getItem(LS_TAB)||'tasks'; showTab(last);
-  const code=localStorage.getItem(LS_SYNC)||''; const inp=document.getElementById('syncCode'); if(inp) inp.value=code;
+  ensureSyncCode(); // auto-generate (TaskPulse Money style)
   tpUpdateLastBackupLabel(); tpRenderDatalist('');
   renderHistory();
+  showCarryBannerIfAny(); // show auto-carry warning if it ran
 });
 
-carryForwardIfNeeded(); renderAll();
+autoCarryForwardIfNewDay(); // auto carry with count tracking
+renderAll();
 
 /* Tabs */
 function showTab(id){
@@ -242,6 +261,53 @@ function delTask(dayKey,id){ if(!confirm('Delete task?')) return; days[dayKey]=e
 function clearCompleted(){ days[viewing]=ensureDay(viewing).filter(x=>!x.done); save(LS_KEY,days); renderAll(); }
 function shiftDay(d){ const dt=new Date(viewing); dt.setDate(dt.getDate()+d); viewing=dt.toISOString().slice(0,10); renderAll(); }
 
+/* Manual carry-over: move all incomplete tasks on current "viewing" day to tomorrow */
+function manualCarryOver(){
+  const list=ensureDay(viewing); const incomplete=list.filter(t=>!t.done);
+  if(!incomplete.length){ alert('No incomplete tasks to carry.'); return; }
+  const tomorrowIso = isoOffset(viewing, +1);
+  ensureDay(tomorrowIso).unshift(...incomplete.map(t=>({
+    ...t, id:'t_'+Math.random().toString(36).slice(2,8), createdAt:new Date().toISOString()
+  })));
+  // Keep original day tasks intact or remove the incompletes? Usually carry means keep a copy on tomorrow and leave original.
+  // If you prefer to remove from source, uncomment next line:
+  days[viewing] = list.filter(t=>t.done); // remove carried items from today
+  save(LS_KEY,days); renderAll();
+  alert(`Carried ${incomplete.length} task(s) to ${fmtHumanDate(tomorrowIso)}.`);
+}
+
+/* Auto carry-over with warning banner */
+function autoCarryForwardIfNewDay(){
+  const lastOpen = load(LS_LAST_OPEN,'');
+  const today = isoToday();
+  let carried = 0;
+  if(lastOpen && lastOpen !== today){
+    const prev = ensureDay(lastOpen).filter(t=>!t.done);
+    if(prev.length){
+      const dest = ensureDay(today);
+      dest.unshift(...prev.map(t=>({...t, id:'t_'+Math.random().toString(36).slice(2,8), createdAt:new Date().toISOString()})));
+      // remove carried from previous day so we don't duplicate
+      days[lastOpen] = ensureDay(lastOpen).filter(t=>t.done);
+      carried = prev.length;
+      save(LS_KEY, days);
+    }
+  }
+  save(LS_LAST_OPEN, today);
+  localStorage.setItem(LS_LAST_CARRY_COUNT, String(carried));
+}
+
+function showCarryBannerIfAny(){
+  const cnt = parseInt(localStorage.getItem(LS_LAST_CARRY_COUNT)||'0',10);
+  const bar = document.getElementById('carryWarn');
+  if(!bar) return;
+  if(cnt>0){
+    bar.style.display='block';
+    bar.textContent = `⚠️ ${cnt} incomplete task(s) were automatically carried over to today.`;
+  }else{
+    bar.style.display='none';
+  }
+}
+
 /* Render Tasks area */
 function renderAll(){
   document.getElementById('todayLabel').textContent=fmtHumanDate(TODAY);
@@ -260,7 +326,7 @@ function renderAll(){
   const q=list.filter(x=>x.done).reduce((a,b)=>a+(b.stars||0),0); const qPct=done?Math.round((q/(done*3))*100):0;
   document.getElementById('doneSummary').textContent=`${done} / ${total} tasks done (${pct}%)`;
   document.getElementById('qualitySummary').textContent=`Quality ${qPct}%`;
-  document.getElementById('kpiRow').textContent=`${done} / ${total} done (${pct}%) · Quality ${qPct}%`;
+  document.getElementById('kpiRow').firstElementChild.textContent=`${done} / ${total} done (${pct}%) · Quality ${qPct}%`;
 }
 
 /* ===== History tab ===== */
@@ -303,10 +369,7 @@ function renderHistory(){
   });
 }
 
-/* Settings helpers */
-function saveSyncCode(){ const v=document.getElementById('syncCode').value.trim(); localStorage.setItem(LS_SYNC,v); alert('Sync code saved. Use the same code on both devices.'); }
-
-/* Backup/Restore (simple) */
+/* ===== Backup/Restore (simple) ===== */
 (function(){
   window.tpDownloadBackup=function(){
     try{
@@ -322,7 +385,7 @@ function saveSyncCode(){ const v=document.getElementById('syncCode').value.trim(
 })();
 function tpUpdateLastBackupLabel(){ const el=document.getElementById('tpLastBackup'); if(el) el.textContent=`Last backup: ${localStorage.getItem('tp_last_backup')||'none'}`; }
 
-/* Predictive text */
+/* ===== Predictive text ===== */
 const SUGGEST_MAX=10;
 function tpCollectTaskStats(){ const stats=new Map(); for(const dk of Object.keys(days||{})){ for(const t of (days[dk]||[])){ const nm=(t.name||'').trim(); if(!nm) continue; const key=nm.toLowerCase(); const last=new Date(t.createdAt||t.timeCompleted||t.updatedAt||t.date||new Date()).getTime(); if(!stats.has(key)) stats.set(key,{name:nm,count:0,last:0}); const s=stats.get(key); s.count++; s.last=Math.max(s.last,last);} } return stats; }
 function tpRankedNames(stats){ return Array.from(stats.values()).sort((a,b)=>(b.count-a.count)||(b.last-a.last)).map(v=>v.name); }
@@ -330,105 +393,96 @@ function tpGetSuggestions(prefix){ const ranked=tpRankedNames(tpCollectTaskStats
 function tpRenderDatalist(prefix){ const dl=document.getElementById('taskSuggestions'); if(!dl) return; const opts=tpGetSuggestions(prefix); dl.innerHTML=opts.map(n=>`<option value="${escapeHtml(n)}"></option>`).join(''); }
 (function(){ const input=document.getElementById('taskInput'); if(!input) return; tpRenderDatalist(''); input.addEventListener('input',()=>tpRenderDatalist(input.value)); input.addEventListener('focus',()=>tpRenderDatalist(input.value)); })();
 
-/* Utils */
+/* ===== Utils ===== */
 function isoToday(){ return new Date().toISOString().slice(0,10); }
+function isoOffset(iso, days){ const d=new Date(iso); d.setDate(d.getDate()+days); return d.toISOString().slice(0,10); }
 function ensureDay(iso){ if(!days[iso]) days[iso]=[]; return days[iso]; }
 function load(k,def){ try{ return JSON.parse(localStorage.getItem(k)||'null') ?? def; }catch(e){return def;} }
 function save(k,v){ localStorage.setItem(k, JSON.stringify(v)); }
 function fmtHumanDate(iso){ const d=new Date(iso); return d.toLocaleDateString(undefined,{day:'2-digit',month:'2-digit',year:'numeric'}); }
 function escapeHtml(s){ return s.replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;', "'":'&#039;' }[m])); }
-function carryForwardIfNeeded(){ const lastOpen=load('tp_last_open',''); const today=isoToday(); if(lastOpen && lastOpen!==today){ const prev=ensureDay(lastOpen).filter(t=>!t.done).map(t=>({...t,id:'t_'+Math.random().toString(36).slice(2,8),createdAt:new Date().toISOString()})); if(prev.length){ ensureDay(today).unshift(...prev); save(LS_KEY, days);} } save('tp_last_open', today); }
 </script>
 
-<!-- ===== Task Pulse — Firebase Sync (realtime) ===== -->
+<!-- ===== Task Pulse — Firebase Sync (realtime + auto code like Money) ===== -->
 <script>
 const TP_UID = (localStorage.getItem('tp_uid') || (() => {
   const v = 'u_' + Math.random().toString(36).slice(2,10);
   localStorage.setItem('tp_uid', v);
   return v;
 })());
+let syncRef = null, syncOff = null, writeTimer = null;
 
-let syncRef = null;
-let syncOff = null;
-let writeTimer = null;
+/* Status badge */
+function setSyncBadge(text, kind=''){ const el=document.getElementById('syncState'); if(!el) return; el.textContent=text; el.className='badge ' + (kind||''); }
 
-/** broadcast local changes (debounced) */
+/* Auto-generate + manage sync code */
+const SYNC_PREFIX = 'grp-';
+function randomCode(len=6){ const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let out=''; for(let i=0;i<len;i++) out+=chars[Math.floor(Math.random()*chars.length)]; return out; }
+function ensureSyncCode(){
+  let code = localStorage.getItem(LS_SYNC);
+  if(!code || !code.trim()){ code = SYNC_PREFIX + randomCode(6); localStorage.setItem(LS_SYNC, code); }
+  const inp=document.getElementById('syncCode'); if(inp) inp.value=code;
+  if (isFirebaseReady()) { attachSync(code); }
+}
+function copySyncCode(){ const i=document.getElementById('syncCode'); if(!i||!i.value) return; navigator.clipboard.writeText(i.value).then(()=>alert('Sync code copied')); }
+function newSyncCode(){
+  if(!confirm('Generate a new sync code? Devices must use this new code.')) return;
+  const code=SYNC_PREFIX+randomCode(6); localStorage.setItem(LS_SYNC,code);
+  const inp=document.getElementById('syncCode'); if(inp) inp.value=code;
+  if(typeof syncOff==='function' && syncOff) syncOff();
+  if (isFirebaseReady()) attachSync(code);
+  alert('New code generated.');
+}
+function saveSyncCode(){ const i=document.getElementById('syncCode'); if(!i) return; const v=(i.value||'').trim(); if(!v) return; localStorage.setItem(LS_SYNC,v); alert('Sync code saved.'); if(typeof syncOff==='function' && syncOff) syncOff(); if(isFirebaseReady()) attachSync(v); }
+
+/* Core sync */
+function isFirebaseReady(){ return (window.firebase && firebase.apps && firebase.apps.length); }
 function notifyLocalChanged(){ debouncedPush(); }
 function debouncedPush(){
-  if (!syncRef) return;
+  if(!syncRef) return;
   clearTimeout(writeTimer);
-  writeTimer = setTimeout(() => {
-    const payload = { days, _meta: { by: TP_UID, at: Date.now() } };
-    syncRef.set(payload).catch(console.warn);
-  }, 250);
+  writeTimer = setTimeout(()=>{ syncRef.set({days, _meta:{by:TP_UID, at:Date.now()}}).catch(console.warn); }, 250);
 }
-
-/** attach to a code path */
 function attachSync(code){
-  if (!(window.firebase && firebase.apps && firebase.apps.length)) {
-    console.log('[sync] Firebase not initialized — local only');
-    return;
-  }
-  if (!code) return;
+  if(!isFirebaseReady()) { setSyncBadge('Local-only'); return; }
+  if(!code) return;
 
-  if (syncOff) { syncOff(); syncOff=null; }
+  if(syncOff){ syncOff(); syncOff=null; }
   syncRef = firebase.database().ref(`taskpulse/${code}`);
+  setSyncBadge(`Sync: ${code}`, 'good');
 
   // initial merge/seed
   syncRef.child('days').get().then(snap=>{
     const remote = snap.val();
-    if (remote && typeof remote === 'object') {
+    if(remote && typeof remote==='object'){
       days = mergeDays(days, remote);
       save(LS_KEY, days); renderAll();
     } else {
-      debouncedPush(); // seed path with our local
+      debouncedPush();
     }
-  }).catch(console.warn);
+  }).catch(e=>{ console.warn(e); setSyncBadge('Sync error', 'warn'); });
 
   const handler = syncRef.on('value', snap=>{
-    const val = snap.val();
-    if (!val || !val.days) return;
-    if (val._meta && val._meta.by === TP_UID) return; // ignore our echo
-    days = mergeDays(days, val.days);
-    save(LS_KEY, days); renderAll();
+    const val = snap.val(); if(!val||!val.days) return;
+    if(val._meta && val._meta.by===TP_UID) return; // ignore our own echo
+    days = mergeDays(days, val.days); save(LS_KEY, days); renderAll();
   });
   syncOff = () => syncRef.off('value', handler);
-
-  console.log('[sync] attached', code);
 }
-
-/** merge days by newest task time */
 function mergeDays(localDays, remoteDays){
-  const out = { ...(localDays||{}) };
-  for (const d of Object.keys(remoteDays||{})){
-    if (!out[d]) { out[d] = remoteDays[d]; continue; }
-    const L = out[d] || [], R = remoteDays[d] || [];
-    const stamp = arr => arr.reduce((m,t)=>Math.max(m, new Date(t.timeCompleted||t.createdAt||0).getTime()),0);
-    out[d] = (stamp(R) > stamp(L)) ? R : L;
+  const out={...(localDays||{})};
+  for(const d of Object.keys(remoteDays||{})){
+    if(!out[d]) { out[d]=remoteDays[d]; continue; }
+    const L=out[d]||[], R=remoteDays[d]||[];
+    const stamp = arr => arr.reduce((m,t)=>Math.max(m, new Date(t.timeCompleted||t.createdAt||0).getTime()), 0);
+    out[d] = (stamp(R)>stamp(L)) ? R : L;
   }
   return out;
 }
 
-/* hook save() so every local change pushes */
+/* Hook save() so every local change pushes */
 const _save = save;
-save = function(k,v){ _save(k,v); if (k===LS_KEY) notifyLocalChanged(); };
-
-/* wrap settings button to reattach */
-const _saveSyncCodeBtn = window.saveSyncCode;
-window.saveSyncCode = function(){
-  const v = document.getElementById('syncCode').value.trim();
-  localStorage.setItem(LS_SYNC, v);
-  alert('Sync code saved. Use the same code on both devices.');
-  if (syncOff) syncOff();
-  attachSync(v);
-  debouncedPush();
-};
-
-/* auto-attach on load if code exists */
-(function(){ try{
-  const code = localStorage.getItem(LS_SYNC)||'';
-  if (code) attachSync(code);
-}catch(e){console.warn(e);} })();
+save = function(k,v){ _save(k,v); if(k===LS_KEY) notifyLocalChanged(); };
 </script>
 
 <script>
