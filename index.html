@@ -418,21 +418,53 @@ function setSyncBadge(text, kind=''){ const el=document.getElementById('syncStat
 /* Auto-generate + manage sync code */
 const SYNC_PREFIX = 'grp-';
 function randomCode(len=6){ const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let out=''; for(let i=0;i<len;i++) out+=chars[Math.floor(Math.random()*chars.length)]; return out; }
+
+ /* === Sync code management (editable field) === */
 function ensureSyncCode(){
   let code = localStorage.getItem(LS_SYNC);
-  if(!code || !code.trim()){ code = SYNC_PREFIX + randomCode(6); localStorage.setItem(LS_SYNC, code); }
-  const inp=document.getElementById('syncCode'); if(inp) inp.value=code;
-  if (isFirebaseReady()) { attachSync(code); }
+  if(!code || !code.trim()){ 
+    code = SYNC_PREFIX + randomCode(6); 
+    localStorage.setItem(LS_SYNC, code); 
+  }
+  const inp = document.getElementById('syncCode');
+  if(inp){
+    inp.value = code;
+    // ✅ Make field editable so you can paste from another device
+    inp.removeAttribute('readonly');
+    inp.placeholder = 'Enter or paste sync code (e.g. grp-ABC123)';
+  }
+  if (isFirebaseReady()) attachSync(code);
 }
-function copySyncCode(){ const i=document.getElementById('syncCode'); if(!i||!i.value) return; navigator.clipboard.writeText(i.value).then(()=>alert('Sync code copied')); }
+
+function copySyncCode(){
+  const i = document.getElementById('syncCode');
+  if(!i || !i.value) return;
+  navigator.clipboard.writeText(i.value).then(()=>alert('Sync code copied'));
+}
+
 function newSyncCode(){
   if(!confirm('Generate a new sync code? Devices must use this new code.')) return;
-  const code=SYNC_PREFIX+randomCode(6); localStorage.setItem(LS_SYNC,code);
-  const inp=document.getElementById('syncCode'); if(inp) inp.value=code;
+  const code = SYNC_PREFIX + randomCode(6);
+  localStorage.setItem(LS_SYNC, code);
+  const inp = document.getElementById('syncCode');
+  if(inp) inp.value = code;
   if(typeof syncOff==='function' && syncOff) syncOff();
   if (isFirebaseReady()) attachSync(code);
   alert('New code generated.');
 }
+
+function saveSyncCode(){
+  const i = document.getElementById('syncCode');
+  if(!i) return;
+  const v = (i.value || '').trim();
+  if(!v) return alert('Enter a valid code first.');
+  localStorage.setItem(LS_SYNC, v);
+  alert('Sync code saved.');
+  if(typeof syncOff==='function' && syncOff) syncOff();
+  if (isFirebaseReady()) attachSync(v);
+}
+
+
 function saveSyncCode(){ const i=document.getElementById('syncCode'); if(!i) return; const v=(i.value||'').trim(); if(!v) return; localStorage.setItem(LS_SYNC,v); alert('Sync code saved.'); if(typeof syncOff==='function' && syncOff) syncOff(); if(isFirebaseReady()) attachSync(v); }
 
 /* Core sync */
