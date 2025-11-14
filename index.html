@@ -1,460 +1,962 @@
-<!-- Paste full Task Pulse V6.1 index.html here --><!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Task Pulse</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Task Pulse</title>
 
-<link rel="manifest" href="manifest.json">
-<link rel="icon" href="icon-192.png" sizes="192x192">
-<meta name="theme-color" content="#0b0d14">
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="icon-192.png" sizes="192x192" />
+  <meta name="theme-color" content="#0f111a" />
 
-<style>
-/* -----------------------------------------------------
-   THEME
------------------------------------------------------ */
-:root{
-  --bg:#0b0d14;
-  --card:#141725;
-  --ink:#e9ecf5;
-  --muted:#9aa3b9;
-  --line:#212636;
-  --pad:16px;
-  --radius:16px;
-  --tap:54px;
-  --fs:16px;
+  <style>
+    :root{
+      --bg:#0f111a;
+      --card:#141725;
+      --card-soft:#191d2c;
+      --ink:#e9ecf5;
+      --muted:#a7b0cd;
+      --accent:#26d0ce;
+      --accent-soft:rgba(38,208,206,0.12);
+      --danger:#ff4b6a;
+      --good:#35e38a;
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{
+      font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      background:radial-gradient(circle at top,#1c2541 0,#0b1020 55%,#05060b 100%);
+      color:var(--ink);
+      min-height:100vh;
+      display:flex;
+      justify-content:center;
+      padding:14px;
+    }
+    .shell{
+      width:100%;
+      max-width:960px;
+      background:rgba(9,11,24,0.96);
+      border-radius:22px;
+      box-shadow:0 26px 60px rgba(0,0,0,0.6);
+      border:1px solid rgba(95,135,220,0.25);
+      padding:14px 14px 18px;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+    }
+    header{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:8px;
+    }
+    .brand{
+      display:flex;
+      align-items:center;
+      gap:10px;
+    }
+    .logo-badge{
+      width:40px;height:40px;border-radius:50%;
+      background:radial-gradient(circle at 30% 20%,#6fffe9 0,#26d0ce 35%,#144675 75%,#050814 100%);
+      display:flex;align-items:center;justify-content:center;
+      font-weight:800;font-size:18px;
+      color:#fff;
+      box-shadow:0 0 12px rgba(111,255,233,0.4);
+    }
+    .brand-title{font-weight:700;font-size:18px;}
+    .brand-sub{font-size:11px;color:var(--muted);}
+    .badge{
+      padding:3px 8px;
+      border-radius:999px;
+      font-size:10px;
+      border:1px solid rgba(130,170,255,0.45);
+      color:var(--muted);
+      white-space:nowrap;
+    }
+    .badge.good{
+      border-color:rgba(72,255,176,0.7);
+      color:var(--good);
+    }
+    .badge.warn{
+      border-color:rgba(255,160,76,0.7);
+      color:#ffc977;
+    }
 
-  --p-low:#8bcaf8;
-  --p-med:#ffd28f;
-  --p-high:#ff9aa5;
-}
+    /* Tabs */
+    .tabs{
+      display:flex;
+      gap:4px;
+      background:rgba(10,13,30,0.95);
+      border-radius:999px;
+      padding:3px;
+      border:1px solid rgba(63,86,160,0.7);
+      margin-top:4px;
+    }
+    .tab-btn{
+      flex:1;
+      border:none;
+      background:transparent;
+      color:var(--muted);
+      font-size:12px;
+      padding:6px 0;
+      border-radius:999px;
+    }
+    .tab-btn.active{
+      background:linear-gradient(135deg,#26d0ce,#2c88ff);
+      color:#fff;
+      font-weight:600;
+      box-shadow:0 0 10px rgba(38,208,206,0.5);
+    }
 
-@media(max-width:480px){
-  :root{ --pad:12px; --radius:14px; --fs:17px; --tap:56px; }
-}
+    main{display:flex;flex-direction:column;gap:10px;}
 
-html,body{
-  margin:0;
-  height:100%;
-  background:var(--bg);
-  color:var(--ink);
-  font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
-}
+    /* KPI row */
+    #kpiRow{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      background:linear-gradient(135deg,rgba(38,208,206,0.12),rgba(46,92,255,0.15));
+      border-radius:16px;
+      padding:10px 12px;
+      align-items:center;
+      border:1px solid rgba(94,132,255,0.6);
+    }
+    #kpiRow span{
+      font-size:12px;
+      color:var(--ink);
+      font-weight:500;
+    }
+    #todayLabel, #viewingLabel{
+      font-size:11px;
+      color:var(--muted);
+    }
 
-/* -----------------------------------------------------
-   SPLASH
------------------------------------------------------ */
-#splash{
-  position:fixed;
-  inset:0;
-  background:#000;
-  z-index:9999;
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  overflow:hidden;
-}
-#splash::before{
-  content:"";
-  position:absolute;
-  inset:0;
-  background:url('splash.png') center/cover no-repeat;
-  opacity:0;
-  animation:spZoom 1.8s ease forwards;
-}
-@keyframes spZoom{
-  0%{opacity:0; transform:scale(1.1);}
-  12%{opacity:1;}
-  100%{opacity:0; transform:scale(1);}
-}
-#splash .lab{
-  position:relative;
-  text-align:center;
-  color:#fff;
-  text-shadow:0 4px 14px rgba(0,0,0,.6);
-  animation:txtIn .5s ease forwards .15s;
-  opacity:0;
-}
-@keyframes txtIn{to{opacity:1; transform:translateY(0);}from{transform:translateY(8px);opacity:0;}}
+    /* Carry banner */
+    #carryWarn{
+      display:none;
+      background:rgba(255,193,7,0.12);
+      color:#ffd666;
+      border-radius:10px;
+      padding:6px 8px;
+      font-size:11px;
+      border:1px dashed rgba(255,193,7,0.5);
+    }
 
-#splash h1{
-  margin:0;
-  font-size:44px;
-  letter-spacing:.8px;
-}
-#splash .sub{margin-top:6px; opacity:.9;}
-#splash .foot{
-  position:absolute;
-  bottom:14px;
-  width:100%;
-  text-align:center;
-  font-size:14px;
-  opacity:.85;
-}
+    .row{
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+    }
 
-/* hide after fade */
-.hide-splash #splash{ display:none; }
+    /* Task entry card */
+    .card{
+      background:var(--card);
+      border-radius:16px;
+      padding:10px 10px;
+      border:1px solid rgba(59,77,140,0.7);
+    }
+    .card-header{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      margin-bottom:6px;
+    }
+    .card-title{
+      font-size:13px;
+      font-weight:600;
+    }
+    .card-sub{
+      font-size:11px;
+      color:var(--muted);
+    }
 
-/* -----------------------------------------------------
-   LAYOUT
------------------------------------------------------ */
-.wrap{max-width:830px;margin:0 auto;padding:12px var(--pad) calc(110px + env(safe-area-inset-bottom));}
+    .task-entry{
+      display:flex;
+      gap:6px;
+      margin-top:4px;
+      align-items:center;
+    }
+    #taskInput{
+      flex:1;
+      padding:6px 8px;
+      border-radius:999px;
+      border:none;
+      outline:none;
+      background:var(--card-soft);
+      color:var(--ink);
+      font-size:13px;
+    }
+    #taskInput::placeholder{color:rgba(167,176,205,0.7);}
+    select, button{
+      font-family:inherit;
+      font-size:12px;
+    }
+    #prioSelect{
+      padding:5px 6px;
+      border-radius:999px;
+      border:1px solid rgba(95,129,210,0.8);
+      background:#0f1220;
+      color:var(--ink);
+    }
+    .btn{
+      padding:6px 10px;
+      border-radius:999px;
+      border:none;
+      background:linear-gradient(135deg,#26d0ce,#2c88ff);
+      color:#fff;
+      font-weight:600;
+      cursor:pointer;
+      white-space:nowrap;
+    }
+    .btn-ghost{
+      background:transparent;
+      border:1px solid rgba(113,133,196,0.7);
+      color:var(--muted);
+      font-weight:500;
+    }
+    .btn-danger{
+      background:rgba(255,75,106,0.14);
+      border:1px solid rgba(255,75,106,0.7);
+      color:#ff9fb1;
+    }
 
-.hero{
-  background:#121625;
-  border-radius:18px;
-  padding:18px var(--pad) 16px;
-  border:1px solid var(--line);
-  box-shadow:0 8px 28px rgba(0,0,0,.35);
-}
-h1{margin:0 0 2px;}
+    .task-toolbar{
+      display:flex;
+      justify-content:space-between;
+      margin-top:6px;
+      gap:6px;
+      flex-wrap:wrap;
+    }
+    .muted{color:var(--muted);font-size:11px;}
 
-.build{color:#7f8aa7;font-size:12px;margin-top:3px;}
-.kpi{margin-top:8px;font-size:14px;color:var(--muted);display:flex;gap:12px;flex-wrap:wrap;}
-.badge{
-  padding:6px 10px;
-  border-radius:999px;
-  border:1px solid var(--line);
-  background:#101622;
-}
-.badge.good{background:#0c2217;border-color:#123; color:#20d082;}
-.badge.warn{background:#35270a;border-color:#5a430d;color:#ffcf66;}
+    /* Task list */
+    #taskList{
+      list-style:none;
+      margin-top:6px;
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+      max-height:260px;
+      overflow:auto;
+      padding-right:2px;
+    }
+    .task{
+      display:grid;
+      grid-template-columns:auto 1fr auto auto;
+      gap:6px;
+      align-items:center;
+      padding:6px 8px;
+      border-radius:12px;
+      background:var(--card-soft);
+      border:1px solid rgba(53,70,120,0.8);
+    }
+    .task input[type="checkbox"]{
+      width:16px;height:16px;
+    }
+    .priority{
+      border-radius:999px;
+      padding:2px 6px;
+      font-size:10px;
+      text-transform:uppercase;
+      letter-spacing:0.04em;
+    }
+    .p-low{background:rgba(111,255,233,0.08);color:#6fffe9;}
+    .p-med{background:rgba(255,214,102,0.09);color:#ffd666;}
+    .p-high{background:rgba(255,75,106,0.1);color:#ff9fb1;}
 
-.card{
-  background:#141725;
-  border-radius:var(--radius);
-  padding:var(--pad);
-  border:1px solid var(--line);
-  margin:14px 0;
-  box-shadow:0 6px 26px rgba(0,0,0,.3);
-}
+    .stars{
+      display:flex;
+      gap:2px;
+    }
+    .stars button{
+      border:none;
+      background:transparent;
+      font-size:15px;
+      cursor:pointer;
+      opacity:0.4;
+    }
+    .stars button.on{
+      opacity:1;
+      text-shadow:0 0 6px rgba(255,223,120,0.9);
+    }
+    .actions{
+      display:flex;
+      gap:3px;
+    }
+    .actions button{
+      border:none;
+      width:22px;height:22px;
+      border-radius:999px;
+      background:rgba(32,45,92,0.8);
+      color:var(--ink);
+      cursor:pointer;
+      font-size:12px;
+    }
+    .actions .del{
+      background:rgba(255,75,106,0.16);
+      color:#ff9fb1;
+    }
 
-input,select,button{
-  padding:12px 14px;
-  border-radius:12px;
-  background:#0d1120;
-  border:1px solid var(--line);
-  color:var(--ink);
-  font-size:var(--fs);
-  min-height:var(--tap);
-}
-input[type=text]{flex:1;}
+    /* History */
+    .tab-pane{display:none;}
+    .tab-pane.active{display:block;}
 
-button.primary{
-  background:#f1f3fb;
-  color:#101626;
-  border-color:#ccd2e6;
-  font-weight:600;
-}
+    #histControls{
+      display:flex;
+      gap:6px;
+      margin-bottom:6px;
+      flex-wrap:wrap;
+    }
+    #histSearch{
+      flex:1;
+      padding:6px 8px;
+      border-radius:999px;
+      border:none;
+      outline:none;
+      background:var(--card-soft);
+      color:var(--ink);
+      font-size:12px;
+    }
+    #histSpan{
+      padding:6px 8px;
+      border-radius:999px;
+      border:1px solid rgba(95,129,210,0.8);
+      background:#0f1220;
+      color:var(--ink);
+      font-size:12px;
+    }
+    #histList{
+      max-height:260px;
+      overflow:auto;
+      padding-right:2px;
+    }
+    .hist-row button{
+      border:none;
+      border-radius:999px;
+      padding:4px 10px;
+      background:linear-gradient(135deg,#26d0ce,#2c88ff);
+      color:#fff;
+      font-size:11px;
+      cursor:pointer;
+    }
 
-/* -----------------------------------------------------
-   TABS
------------------------------------------------------ */
-.tabs{
-  position:sticky;top:0;z-index:100;
-  padding:10px var(--pad) 0;
-  background:linear-gradient(180deg,rgba(11,13,20,.9),rgba(11,13,20,.2));
-  backdrop-filter:blur(6px);
-}
-.tabbar{
-  display:flex; gap:10px; overflow-x:auto; padding-bottom:6px;
-}
-.tabbar button{
-  min-width:110px;
-  padding:10px 14px;
-  background:#101424;
-  border:1px solid var(--line);
-  border-radius:14px;
-  color:#cfe0ff;
-  font-weight:600;
-  white-space:nowrap;
-}
-.tabbar button.active{
-  background:#f1f3fb;
-  color:#111829;
-  border-color:#ccd4e8;
-}
+    /* Backup & Sync */
+    .field-row{
+      display:flex;
+      gap:6px;
+      flex-wrap:wrap;
+      margin-top:4px;
+    }
+    #syncCode{
+      flex:1;
+      padding:6px 8px;
+      border-radius:999px;
+      border:none;
+      outline:none;
+      background:var(--card-soft);
+      color:var(--ink);
+      font-size:12px;
+    }
+    #tpBackupStatus{
+      margin-top:4px;
+      font-size:11px;
+      color:var(--muted);
+    }
+    #tpLastBackup{
+      font-size:11px;
+      color:var(--muted);
+      margin-top:4px;
+    }
+    footer{
+      margin-top:6px;
+      font-size:10px;
+      color:var(--muted);
+      text-align:center;
+    }
 
-.tabpage{display:none;}
-.tabpage.active{display:block;}
-
-/* -----------------------------------------------------
-   TASKS
------------------------------------------------------ */
-.list{list-style:none;margin:0;padding:0;}
-
-.task{
-  display:grid;
-  grid-template-columns:auto 1fr auto auto;
-  gap:10px;
-  padding:12px 0;
-  border-bottom:1px dashed #272c3b;
-}
-
-.priority{
-  padding:5px 10px;
-  border-radius:999px;
-  font-size:12px;
-  color:#111;
-  margin-top:4px;
-}
-.p-low{background:var(--p-low);}
-.p-med{background:var(--p-med);}
-.p-high{background:var(--p-high);}
-
-.stars button{
-  padding:8px 10px;
-  border-radius:9px;
-  background:#181b2d;
-  border:1px solid var(--line);
-  color:#ffdd76;
-}
-.stars button.on{background:#2a243d;}
-
-.actions button{
-  padding:8px 10px;
-  background:#151829;
-  border:1px solid var(--line);
-  border-radius:9px;
-  color:#d8e0ff;
-}
-.actions .del{color:#ff9ba7;}
-
-.sum{
-  margin-top:10px;
-  display:flex;
-  justify-content:space-between;
-  border-radius:12px;
-  background:#0d1324;
-  padding:10px 12px;
-  border:1px solid var(--line);
-}
-
-/* -----------------------------------------------------
-   HISTORY
------------------------------------------------------ */
-.hist-row{
-  background:#101622;
-  border:1px solid var(--line);
-  border-radius:14px;
-  padding:12px;
-  margin:10px 0;
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-}
-.hist-row .meta{
-  color:#8ea0c6;
-  margin-top:4px;
-  font-size:12px;
-}
-
-/* -----------------------------------------------------
-   WARN BANNER
------------------------------------------------------ */
-#carryWarn{
-  display:none;
-  padding:10px 12px;
-  background:#221a07;
-  border:1px solid #4d3b0e;
-  color:#ffd890;
-  border-radius:12px;
-  margin-top:10px;
-}
-
-/* -----------------------------------------------------
-   MEDICATION
------------------------------------------------------ */
-#medCard strong{color:#fff;}
-#medCard button{
-  margin-top:10px;
-  width:100%;
-  background:#1d2339;
-}
-
-/* -----------------------------------------------------
-   UTILS
------------------------------------------------------ */
-</style>
+    @media (max-width:640px){
+      .task{
+        grid-template-columns:auto 1fr auto;
+        grid-template-rows:auto auto;
+      }
+      .stars{order:3;grid-column:2/4;}
+    }
+  </style>
 </head>
-
 <body>
-
-<!-- -----------------------------------------------------
-     SPLASH
------------------------------------------------------ -->
-<div id="splash">
-  <div class="lab">
-    <h1>Task Pulse</h1>
-    <div class="sub">Focus. Sync. Achieve.</div>
-    <div class="foot">Powered by Daryl G</div>
-  </div>
-</div>
-
-<!-- -----------------------------------------------------
-     WRAP
------------------------------------------------------ -->
-<div class="wrap">
-
-  <!-- HEADER -->
-  <header class="hero">
-    <div class="muted">Today</div>
-    <h1 id="todayLabel">—</h1>
-    <div class="build">Version 6.1 • carry-over • predictive • sync • meds • backup/restore</div>
-    <div class="kpi">
-      <span id="kpiMain">0/0 done</span>
-      <span id="syncState" class="badge">Local-only</span>
+<div class="shell">
+  <header>
+    <div class="brand">
+      <div class="logo-badge">TP</div>
+      <div>
+        <div class="brand-title">Task Pulse</div>
+        <div class="brand-sub">Daily focus · v6.1</div>
+      </div>
     </div>
-    <div id="carryWarn"></div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+      <span id="syncState" class="badge">Local-only</span>
+      <span id="tpLastBackup" class="muted">Last backup: none</span>
+    </div>
   </header>
 
-  <!-- TABS -->
   <div class="tabs">
-    <div class="tabbar">
-      <button id="btnTabTasks" class="active" onclick="showTab('tasks')">Tasks</button>
-      <button id="btnTabHistory" onclick="showTab('history')">History</button>
-      <button id="btnTabSettings" onclick="showTab('settings')">Settings</button>
+    <button class="tab-btn active" data-tab="tasksTab">Tasks</button>
+    <button class="tab-btn" data-tab="histTab">History</button>
+    <button class="tab-btn" data-tab="syncTab">Backup & Sync</button>
+  </div>
+
+  <main>
+    <div id="kpiRow">
+      <span>0 / 0 done (0%) · Quality 0%</span>
+      <span id="todayLabel"></span>
+      <span id="viewingLabel"></span>
     </div>
-  </div>
 
-  <!-- -----------------------------------------------------
-       TAB: TASKS
-  ----------------------------------------------------- -->
-  <div id="tab-tasks" class="tabpage active">
+    <div id="carryWarn"></div>
 
-    <!-- Add Task -->
-    <section class="card">
-      <h3 style="margin:0 0 10px">Today's Tasks</h3>
+    <!-- TASKS TAB -->
+    <section id="tasksTab" class="tab-pane active">
+      <div class="row">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Today’s Tasks</div>
+              <div class="card-sub" id="doneSummary">0 / 0 tasks done (0%)</div>
+            </div>
+            <div class="card-sub" id="qualitySummary">Quality 0%</div>
+          </div>
 
-      <div class="row" style="display:flex;gap:10px;margin-bottom:10px;">
-        <input id="taskInput" type="text" placeholder="Add task…" list="taskSuggestions">
-        <datalist id="taskSuggestions"></datalist>
+          <div class="task-entry">
+            <input id="taskInput" list="taskSuggestions" placeholder="Add a task (e.g. Plan meds, call doc)"/>
+            <datalist id="taskSuggestions"></datalist>
+            <select id="prioSelect">
+              <option value="med">Med</option>
+              <option value="high">High</option>
+              <option value="low">Low</option>
+            </select>
+            <button class="btn" onclick="addTask()">Add</button>
+          </div>
 
-        <select id="prioSelect">
-          <option value="low">low</option>
-          <option value="med">med</option>
-          <option value="high">high</option>
-        </select>
+          <div class="task-toolbar">
+            <div class="muted">
+              <button class="btn-ghost" onclick="shiftDay(-1)">◀ Prev</button>
+              <button class="btn-ghost" onclick="viewing=TODAY; renderAll()">Today</button>
+              <button class="btn-ghost" onclick="shiftDay(1)">Next ▶</button>
+            </div>
+            <div style="display:flex;gap:4px;">
+              <button class="btn-ghost" onclick="manualCarryOver()">Carry incomplete → tomorrow</button>
+              <button class="btn-danger" onclick="clearCompleted()">Clear completed</button>
+            </div>
+          </div>
 
-        <button class="primary" onclick="addTask()">Add</button>
-      </div>
-
-      <div class="row" style="display:flex;gap:10px;">
-        <button onclick="clearCompleted()">Clear completed</button>
-        <button onclick="manualCarryOver()">Carry incomplete → tomorrow</button>
+          <ul id="taskList"></ul>
+        </div>
       </div>
     </section>
 
-    <!-- Viewing Day -->
-    <section class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center;">
+    <!-- HISTORY TAB -->
+    <section id="histTab" class="tab-pane">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">History & Trends</div>
+            <div class="card-sub">Scroll back through previous days, with quality scores.</div>
+          </div>
+        </div>
+
+        <div id="histControls">
+          <input id="histSearch" placeholder="Search by date or task text…" />
+          <select id="histSpan">
+            <option value="7">Last 7 days</option>
+            <option value="30">Last 30 days</option>
+            <option value="90">Last 90 days</option>
+            <option value="all">All time</option>
+          </select>
+        </div>
+
+        <div id="histList"></div>
+      </div>
+    </section>
+
+    <!-- BACKUP & SYNC TAB -->
+    <section id="syncTab" class="tab-pane">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Cloud Sync & Backup</div>
+            <div class="card-sub">Share your tasks across devices and keep a safety copy.</div>
+          </div>
+        </div>
+
+        <div style="margin-top:6px;">
+          <div class="card-sub" style="margin-bottom:4px;">Sync group code (use the same on all devices):</div>
+          <div class="field-row">
+            <input id="syncCode" placeholder="Enter sync code (grp-XXXXXX)" />
+            <button class="btn-ghost" onclick="copySyncCode()">Copy</button>
+            <button class="btn-ghost" onclick="saveSyncCode()">Save</button>
+            <button class="btn-ghost" onclick="newSyncCode()">New</button>
+          </div>
+        </div>
+
+        <hr style="border:none;border-top:1px solid rgba(48,66,122,0.7);margin:10px 0;" />
+
         <div>
-          <div class="muted">Viewing</div>
-          <div id="viewingLabel" style="font-weight:600">—</div>
+          <div class="card-sub" style="margin-bottom:4px;">Local backup (JSON file):</div>
+          <div class="field-row">
+            <button class="btn" onclick="tpDownloadBackup()">Download backup</button>
+            <label class="btn-ghost" style="display:inline-flex;align-items:center;gap:4px;cursor:pointer;">
+              Restore
+              <input id="tpRestoreFile" type="file" accept="application/json" style="display:none;">
+            </label>
+          </div>
+          <div id="tpBackupStatus">No backup action yet.</div>
         </div>
-        <div class="nav" style="display:flex;gap:8px;">
-          <button onclick="shiftDay(-1)">◀</button>
-          <button onclick="shiftDay(1)">▶</button>
-        </div>
-      </div>
-
-      <ul id="taskList" class="list" style="margin-top:8px;"></ul>
-
-      <div class="sum">
-        <div id="doneSummary">0/0 tasks done</div>
-        <div id="qualitySummary">Quality 0%</div>
       </div>
     </section>
+  </main>
 
-    <!-- Medication -->
-    <section class="card" id="medCard">
-      <h3 style="margin:0 0 8px;">Medication Log</h3>
-      <div id="medStatusText" class="muted">Day Dose: —<br>Night Dose: —</div>
-      <button onclick="logMed('day')">Day Dose</button>
-      <button onclick="logMed('night')">Night Dose</button>
-    </section>
+  <footer>
+    Task Pulse v6.1 • Powered by D Gounder
+  </footer>
+</div>
 
-  </div>
-
-  <!-- -----------------------------------------------------
-       TAB: HISTORY
-  ----------------------------------------------------- -->
-  <div id="tab-history" class="tabpage">
-
-    <section class="card">
-      <h3 style="margin:0 0 10px">History</h3>
-
-      <div class="row" style="display:flex;gap:10px;margin-bottom:10px;">
-        <input id="histSearch" type="text" placeholder="Search text or YYYY-MM-DD" oninput="renderHistory()">
-        <select id="histSpan" onchange="renderHistory()">
-          <option value="7">Last 7 days</option>
-          <option value="14">Last 14 days</option>
-          <option value="30" selected>Last 30 days</option>
-          <option value="90">Last 90 days</option>
-          <option value="all">All</option>
-        </select>
-      </div>
-
-      <div id="histList"></div>
-    </section>
-
-  </div>
-
-  <!-- -----------------------------------------------------
-       TAB: SETTINGS
-  ----------------------------------------------------- -->
-  <div id="tab-settings" class="tabpage">
-
-    <!-- Sync -->
-    <section class="card">
-      <h3 style="margin:0 0 10px;">Sync Between Devices</h3>
-
-      <div class="row" style="display:flex;gap:10px;flex-wrap:wrap;">
-        <input id="syncCode" placeholder="Enter or paste sync code" style="flex:1;">
-        <button onclick="copySyncCode()">Copy</button>
-        <button onclick="newSyncCode()">New</button>
-        <button onclick="saveSyncCode()">Apply</button>
-      </div>
-
-      <div class="muted" style="margin-top:6px;">
-        Both devices must use the same sync code.  
-        Sync uses Firebase Realtime Database.
-      </div>
-    </section>
-
-    <!-- Backup -->
-    <section class="card">
-      <h3 style="margin:0 0 10px;">Backup & Restore</h3>
-
-      <div class="row" style="display:flex;gap:10px;flex-wrap:wrap;">
-        <button class="primary" onclick="tpDownloadBackup()">⭳ Download Backup</button>
-        <input id="tpRestoreFile" type="file" accept="application/json" style="display:none;">
-        <button onclick="document.getElementById('tpRestoreFile').click()">⭱ Import Backup</button>
-      </div>
-
-      <div id="tpBackupStatus" class="muted" style="margin-top:6px;"></div>
-      <div id="tpLastBackup" class="muted" style="margin-top:6px;font-size:13px;">Last backup: none</div>
-    </section>
-
-  </div>
-
-</div> <!-- END WRAP -->
-
-<!-- ===========================================================
-     CORE LOGIC (CHUNK 3)
-=========================================================== -->
 <script>
-/* (The entire CHUNK 3 JavaScript block you already received goes here — unchanged) */
+/* ===== Local Storage Keys & Globals ===== */
+const LS_KEY = 'tp_days_v6_1';
+const LS_LAST_OPEN = 'tp_last_open';
+const LS_LAST_CARRY_COUNT = 'tp_last_carry_count';
+const LS_SYNC = 'tp_sync_code';
+
+let days = load(LS_KEY, {});
+const TODAY = isoToday();
+let viewing = TODAY;
+
+/* ===== Tab Logic ===== */
+function showTab(id){
+  document.querySelectorAll('.tab-pane').forEach(p=>{
+    p.classList.toggle('active', p.id === id);
+  });
+  document.querySelectorAll('.tab-btn').forEach(b=>{
+    b.classList.toggle('active', b.dataset.tab === id);
+  });
+  if(id === 'histTab') renderHistory();
+}
+
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>showTab(btn.dataset.tab));
+});
+
+/* ===== TASKS ===== */
+function addTask(){
+  const input = document.getElementById('taskInput');
+  const name  = input.value.trim();
+  const prio  = document.getElementById('prioSelect').value;
+  if(!name) return;
+
+  const t = {
+    id: 't_'+Math.random().toString(36).slice(2,8),
+    name,
+    prio,
+    done:false,
+    stars:0,
+    createdAt:new Date().toISOString()
+  };
+
+  ensureDay(viewing).unshift(t);
+  save(LS_KEY, days);
+
+  input.value = '';
+  renderAll();
+  tpRenderDatalist('');
+}
+
+function toggleDone(dayKey,id,el){
+  const t = ensureDay(dayKey).find(x=>x.id===id);
+  if(!t) return;
+  t.done = el.checked;
+  t.timeCompleted = t.done ? new Date().toISOString() : '';
+  save(LS_KEY,days);
+  renderAll();
+}
+
+function setStars(dayKey,id,s){
+  const t = ensureDay(dayKey).find(x=>x.id===id);
+  if(!t) return;
+  t.stars = s;
+  save(LS_KEY,days);
+  renderAll();
+}
+
+function editTask(dayKey,id){
+  const t = ensureDay(dayKey).find(x=>x.id===id);
+  if(!t) return;
+  const name = prompt('Edit task', t.name);
+  if(name===null) return;
+  const prio = prompt('Priority (low/med/high)', t.prio) || t.prio;
+
+  t.name = name.trim();
+  t.prio = ['low','med','high'].includes(prio) ? prio : t.prio;
+
+  save(LS_KEY,days);
+  renderAll();
+}
+
+function delTask(dayKey,id){
+  if(!confirm('Delete task?')) return;
+  days[dayKey] = ensureDay(dayKey).filter(t=>t.id!==id);
+  save(LS_KEY,days);
+  renderAll();
+}
+
+function clearCompleted(){
+  days[viewing] = ensureDay(viewing).filter(t=>!t.done);
+  save(LS_KEY,days);
+  renderAll();
+}
+
+function shiftDay(delta){
+  const d = new Date(viewing);
+  d.setDate(d.getDate()+delta);
+  viewing = d.toISOString().slice(0,10);
+  renderAll();
+}
+
+/* ===== MANUAL CARRY ===== */
+function manualCarryOver(){
+  const list = ensureDay(viewing);
+  const incomplete = list.filter(t=>!t.done);
+  if(!incomplete.length){
+    alert('No incomplete tasks to carry.');
+    return;
+  }
+  const tomorrow = isoOffset(viewing, +1);
+
+  ensureDay(tomorrow).unshift(...incomplete.map(t=>({
+    ...t,
+    id:'t_'+Math.random().toString(36).slice(2,8),
+    createdAt:new Date().toISOString()
+  })));
+
+  days[viewing] = list.filter(t=>t.done);
+  save(LS_KEY,days);
+
+  alert(`Carried ${incomplete.length} task(s) to ${fmtHumanDate(tomorrow)}.`);
+  renderAll();
+}
+
+/* ===== AUTO CARRY (on new day) ===== */
+function autoCarryForwardIfNewDay(){
+  const last = localStorage.getItem(LS_LAST_OPEN);
+  const today = isoToday();
+  let carried = 0;
+
+  if(last && last !== today){
+    const prevIncomplete = ensureDay(last).filter(t=>!t.done);
+    if(prevIncomplete.length){
+      const dest = ensureDay(today);
+      dest.unshift(...prevIncomplete.map(t=>({
+        ...t,
+        id:'t_'+Math.random().toString(36).slice(2,8),
+        createdAt:new Date().toISOString()
+      })));
+      days[last] = ensureDay(last).filter(t=>t.done);
+      carried = prevIncomplete.length;
+      save(LS_KEY,days);
+    }
+  }
+  localStorage.setItem(LS_LAST_OPEN, today);
+  localStorage.setItem(LS_LAST_CARRY_COUNT, String(carried));
+}
+
+function showCarryBannerIfAny(){
+  const bar = document.getElementById('carryWarn');
+  if(!bar) return;
+  const cnt = parseInt(localStorage.getItem(LS_LAST_CARRY_COUNT) || '0',10);
+  if(cnt>0){
+    bar.style.display = 'block';
+    bar.textContent = `⚠️ ${cnt} incomplete task(s) were automatically carried over.`;
+  }else{
+    bar.style.display = 'none';
+  }
+}
+
+/* ===== RENDER TASK LIST ===== */
+function renderAll(){
+  document.getElementById('todayLabel').textContent   = 'Today: ' + fmtHumanDate(TODAY);
+  document.getElementById('viewingLabel').textContent = 'Viewing: ' + fmtHumanDate(viewing);
+
+  const list = ensureDay(viewing);
+  const ul   = document.getElementById('taskList');
+  ul.innerHTML = '';
+
+  list.forEach(t=>{
+    const li = document.createElement('li');
+    li.className = 'task';
+
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = t.done;
+    cb.onchange = e => toggleDone(viewing, t.id, e.target);
+
+    const center = document.createElement('div');
+    const prClass = t.prio === 'low' ? 'p-low' : t.prio === 'med' ? 'p-med' : 'p-high';
+    center.innerHTML = `
+      <div style="font-weight:600;${t.done?'text-decoration:line-through;opacity:.7':''}">
+        ${escapeHtml(t.name)}
+      </div>
+      <div><span class="priority ${prClass}">${t.prio}</span></div>
+    `;
+
+    const stars = document.createElement('div');
+    stars.className = 'stars';
+    for(let s=1;s<=3;s++){
+      const b=document.createElement('button');
+      b.textContent='★';
+      if(t.stars>=s) b.classList.add('on');
+      b.onclick=()=>setStars(viewing,t.id, s===t.stars?0:s);
+      stars.appendChild(b);
+    }
+
+    const act = document.createElement('div');
+    act.className = 'actions';
+
+    const eBtn=document.createElement('button');
+    eBtn.textContent='✎';
+    eBtn.onclick=()=>editTask(viewing,t.id);
+
+    const dBtn=document.createElement('button');
+    dBtn.textContent='×';
+    dBtn.className='del';
+    dBtn.onclick=()=>delTask(viewing,t.id);
+
+    act.appendChild(eBtn);
+    act.appendChild(dBtn);
+
+    li.appendChild(cb);
+    li.appendChild(center);
+    li.appendChild(stars);
+    li.appendChild(act);
+
+    ul.appendChild(li);
+  });
+
+  const total = list.length;
+  const done  = list.filter(t=>t.done).length;
+  const pct   = total ? Math.round(done/total*100) : 0;
+
+  const qsum  = list.filter(t=>t.done).reduce((a,b)=>a+(b.stars||0),0);
+  const qPct  = done ? Math.round((qsum/(done*3))*100) : 0;
+
+  document.getElementById('doneSummary').textContent =
+    `${done} / ${total} tasks done (${pct}%)`;
+
+  document.getElementById('qualitySummary').textContent =
+    `Quality ${qPct}%`;
+
+  document.getElementById('kpiRow').firstElementChild.textContent =
+    `${done} / ${total} done (${pct}%) · Quality ${qPct}%`;
+}
+
+/* ===== HISTORY ===== */
+function renderHistory(){
+  const wrap = document.getElementById('histList');
+  if(!wrap) return;
+
+  const q   = document.getElementById('histSearch').value.trim().toLowerCase();
+  const spanSel = document.getElementById('histSpan').value;
+
+  let keys = Object.keys(days||{});
+  if(spanSel !== 'all'){
+    const span = parseInt(spanSel,10);
+    const min = new Date();
+    min.setDate(min.getDate()-span);
+    keys = keys.filter(k=>new Date(k)>=min);
+  }
+
+  keys.sort((a,b)=>new Date(b)-new Date(a));
+
+  if(q){
+    keys = keys.filter(k=>{
+      if(k.toLowerCase().includes(q)) return true;
+      return (days[k]||[]).some(t=>(t.name||'').toLowerCase().includes(q));
+    });
+  }
+
+  wrap.innerHTML = '';
+  if(!keys.length){
+    wrap.innerHTML = '<div class="muted">No history found.</div>';
+    return;
+  }
+
+  keys.forEach(k=>{
+    const arr   = days[k]||[];
+    const total = arr.length;
+    const done  = arr.filter(t=>t.done).length;
+    const pct   = total ? Math.round(done/total*100) : 0;
+    const qsum  = arr.filter(t=>t.done).reduce((a,b)=>a+(b.stars||0),0);
+    const qPct  = done ? Math.round((qsum/(done*3))*100) : 0;
+
+    const row  = document.createElement('div');
+    row.className = 'hist-row';
+    row.style.border='1px solid #262a3c';
+    row.style.borderRadius='12px';
+    row.style.padding='10px 12px';
+    row.style.margin='6px 0';
+    row.style.display='flex';
+    row.style.justifyContent='space-between';
+    row.style.alignItems='center';
+    row.style.background='#101528';
+
+    const left = document.createElement('div');
+    left.innerHTML = `
+      <div style="font-weight:700">${fmtHumanDate(k)}</div>
+      <div class="meta" style="color:#9fb0d0;font-size:12px;margin-top:4px;">
+        ${done}/${total} done • ${pct}% · Quality ${qPct}%
+      </div>
+    `;
+
+    const right = document.createElement('div');
+    const btn = document.createElement('button');
+    btn.textContent='Open';
+    btn.onclick=()=>{ viewing=k; showTab('tasksTab'); renderAll(); };
+    right.appendChild(btn);
+
+    row.appendChild(left);
+    row.appendChild(right);
+    wrap.appendChild(row);
+  });
+}
+
+/* ===== BACKUP & RESTORE ===== */
+(function(){
+  window.tpDownloadBackup = function(){
+    try{
+      const dump = {};
+      for(let i=0;i<localStorage.length;i++){
+        const k = localStorage.key(i);
+        if(/^tp_/.test(k)) dump[k]=localStorage.getItem(k);
+      }
+      const payload = {
+        app:'taskpulse',
+        version:'v6.1',
+        exportedAt:new Date().toISOString(),
+        dump
+      };
+      const blob = new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'taskpulse_backup.json';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      localStorage.setItem('tp_last_backup', new Date().toLocaleString());
+      tpUpdateLastBackupLabel();
+      setStatus('Backup downloaded.');
+    }catch(e){
+      console.error(e);
+      setStatus('Backup failed.');
+    }
+  };
+
+  const fi = document.getElementById('tpRestoreFile');
+  if(fi){
+    fi.addEventListener('change', async e=>{
+      const f = e.target.files?.[0];
+      if(!f) return;
+      try{
+        const text = await f.text();
+        const data = JSON.parse(text);
+        if(data && data.dump){
+          Object.entries(data.dump).forEach(([k,v])=>{
+            if(/^tp_/.test(k)) localStorage.setItem(k,v);
+          });
+        }
+        setStatus('Restore complete. Reloading…');
+        setTimeout(()=>location.reload(),600);
+      }catch(err){
+        console.error(err);
+        setStatus('Restore failed.');
+      }finally{
+        e.target.value='';
+      }
+    });
+  }
+
+  function setStatus(m){
+    const el = document.getElementById('tpBackupStatus');
+    if(el) el.textContent = m;
+  }
+})();
+
+function tpUpdateLastBackupLabel(){
+  const el = document.getElementById('tpLastBackup');
+  if(el){
+    el.textContent = 'Last backup: ' + (localStorage.getItem('tp_last_backup') || 'none');
+  }
+}
+
+/* ===== PREDICTIVE TASK NAMES ===== */
+const SUGGEST_MAX = 10;
+
+function tpCollectTaskStats(){
+  const stats = new Map();
+  for(const dk of Object.keys(days||{})){
+    for(const t of (days[dk]||[])){
+      const nm = (t.name||'').trim();
+      if(!nm) continue;
+      const key = nm.toLowerCase();
+      const ts = new Date(t.createdAt || t.timeCompleted || new Date()).getTime();
+      if(!stats.has(key)) stats.set(key,{name:nm,count:0,last:0});
+      const s = stats.get(key);
+      s.count++;
+      s.last = Math.max(s.last, ts);
+    }
+  }
+  return stats;
+}
+
+function tpRankedNames(stats){
+  return Array.from(stats.values())
+    .sort((a,b)=>(b.count-a.count)||(b.last-a.last))
+    .map(v=>v.name);
+}
+
+function tpGetSuggestions(prefix){
+  const ranked = tpRankedNames(tpCollectTaskStats());
+  const p = (prefix||'').trim().toLowerCase();
+  if(!p) return ranked.slice(0,SUGGEST_MAX);
+
+  const pref = ranked.filter(n=>n.toLowerCase().startsWith(p));
+  if(pref.length>=SUGGEST_MAX) return pref.slice(0,SUGGEST_MAX);
+
+  const rest = ranked.filter(n=>!n.toLowerCase().startsWith(p) && n.toLowerCase().includes(p));
+  return [...pref,...rest].slice(0,SUGGEST_MAX);
+}
+
+function tpRenderDatalist(prefix){
+  const dl = document.getElementById('taskSuggestions');
+  if(!dl) return;
+  const opts = tpGetSuggestions(prefix);
+  dl.innerHTML = opts.map(n=>`<option value="${escapeHtml(n)}"></option>`).join('');
+}
+
+(function(){
+  const input = document.getElementById('taskInput');
+  if(!input) return;
+  tpRenderDatalist('');
+  input.addEventListener('input', ()=>tpRenderDatalist(input.value));
+  input.addEventListener('focus', ()=>tpRenderDatalist(input.value));
+})();
+
+/* ===== Firebase Sync Setup ===== */
+// Firebase SDKs loaded below with app+database compat
+
 </script>
 
-<!-- ===========================================================
-     FIREBASE SYNC ENGINE
-=========================================================== -->
+<!-- Firebase SDKs -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 
 <script>
-/* ===== Firebase config ===== */
 const firebaseConfig = {
   apiKey: "AIzaSyDXbxWT9viGCGDpPxlzp45QaBr3zUUn2UU",
   authDomain: "taskpulse-9a6ab.firebaseapp.com",
@@ -468,17 +970,196 @@ const firebaseConfig = {
 
 firebase.initializeApp(firebaseConfig);
 
-/* ===== Sync implementation (same as Chunk 4 — unchanged) ===== */
-</script>
+const TP_UID = localStorage.getItem('tp_uid') || (() => {
+  const v='u_'+Math.random().toString(36).slice(2,10);
+  localStorage.setItem('tp_uid',v);
+  return v;
+})();
 
-<script>
-/* REGISTER SERVICE WORKER */
-if ('serviceWorker' in navigator){
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js').catch(() => {});
+let syncRef = null;
+let syncOff = null;
+let writeTimer = null;
+
+function isFirebaseReady(){
+  return (window.firebase && firebase.apps && firebase.apps.length);
+}
+
+function setSyncBadge(text,kind=''){
+  const el = document.getElementById('syncState');
+  if(!el) return;
+  el.textContent = text;
+  el.className = 'badge ' + (kind || '');
+}
+
+function randomCode(len=6){
+  const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let out='';
+  for(let i=0;i<len;i++){
+    out += chars[Math.floor(Math.random()*chars.length)];
+  }
+  return out;
+}
+
+function ensureSyncCode(){
+  let code = localStorage.getItem(LS_SYNC);
+  if(!code){
+    code = 'grp-'+randomCode(6);
+    localStorage.setItem(LS_SYNC,code);
+  }
+  const inp = document.getElementById('syncCode');
+  if(inp){
+    inp.value = code;
+    inp.placeholder = 'Enter sync code (grp-XXXXXX)';
+  }
+  if(isFirebaseReady()) attachSync(code);
+}
+
+function copySyncCode(){
+  const inp=document.getElementById('syncCode');
+  if(!inp) return;
+  navigator.clipboard.writeText(inp.value||'').then(()=>alert('Copied.'));
+}
+
+function newSyncCode(){
+  if(!confirm('Generate a new sync code? Other devices must use this new code.')) return;
+  const code = 'grp-'+randomCode(6);
+  localStorage.setItem(LS_SYNC,code);
+  const inp=document.getElementById('syncCode');
+  if(inp) inp.value = code;
+  if(syncOff) syncOff();
+  if(isFirebaseReady()) attachSync(code);
+}
+
+function saveSyncCode(){
+  const inp=document.getElementById('syncCode');
+  if(!inp) return;
+  const v=(inp.value||'').trim();
+  if(!v) return alert('Enter a valid sync code first.');
+  localStorage.setItem(LS_SYNC,v);
+  if(syncOff) syncOff();
+  if(isFirebaseReady()) attachSync(v);
+  alert('Sync code saved.');
+}
+
+function attachSync(code){
+  if(!isFirebaseReady()){
+    setSyncBadge('Local-only');
+    return;
+  }
+  if(syncOff) syncOff();
+
+  syncRef = firebase.database().ref(`taskpulse/${code}`);
+  setSyncBadge(`Sync: ${code}`,'good');
+
+  syncRef.child('days').get().then(snap=>{
+    const remote = snap.val();
+    if(remote && typeof remote==='object'){
+      days = mergeDays(days,remote);
+      save(LS_KEY,days);
+      renderAll();
+    }else{
+      debouncedPush();
+    }
+  }).catch(e=>{
+    console.warn(e);
+    setSyncBadge('Sync error','warn');
+  });
+
+  const handler = syncRef.on('value', snap=>{
+    const val = snap.val();
+    if(!val || !val.days) return;
+    if(val._meta && val._meta.by === TP_UID) return;
+    days = mergeDays(days,val.days);
+    save(LS_KEY,days);
+    renderAll();
+  });
+
+  syncOff = ()=>syncRef.off('value',handler);
+}
+
+function mergeDays(localDays,remoteDays){
+  const out = {...(localDays||{})};
+  for(const d of Object.keys(remoteDays||{})){
+    if(!out[d]){
+      out[d] = remoteDays[d];
+      continue;
+    }
+    const L = out[d] || [];
+    const R = remoteDays[d] || [];
+    const stamp = arr => arr.reduce((m,t)=>Math.max(
+      m,
+      new Date(t.timeCompleted||t.createdAt||0).getTime()
+    ),0);
+    out[d] = stamp(R) > stamp(L) ? R : L;
+  }
+  return out;
+}
+
+function debouncedPush(){
+  if(!syncRef) return;
+  clearTimeout(writeTimer);
+  writeTimer = setTimeout(()=>{
+    syncRef.set({
+      days,
+      _meta:{by:TP_UID,at:Date.now()}
+    }).catch(console.warn);
+  },250);
+}
+
+/* Override save so sync writes to cloud */
+const _save = save;
+save = function(k,v){
+  _save(k,v);
+  if(k===LS_KEY) debouncedPush();
+};
+
+/* ===== Utils ===== */
+function isoToday(){ return new Date().toISOString().slice(0,10); }
+function isoOffset(iso,days){
+  const d=new Date(iso);
+  d.setDate(d.getDate()+days);
+  return d.toISOString().slice(0,10);
+}
+function ensureDay(iso){
+  if(!days[iso]) days[iso]=[];
+  return days[iso];
+}
+function load(k,def){
+  try { return JSON.parse(localStorage.getItem(k) || 'null') ?? def; }
+  catch(e){ return def; }
+}
+function save(k,v){ localStorage.setItem(k, JSON.stringify(v)); }
+function fmtHumanDate(iso){
+  const d = new Date(iso);
+  return d.toLocaleDateString(undefined,{day:'2-digit',month:'2-digit',year:'numeric'});
+}
+function escapeHtml(s){
+  return s.replace(/[&<>"']/g, m=>(
+    {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]
+  ));
+}
+
+/* ===== Service Worker ===== */
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('./sw.js').catch(()=>{});
   });
 }
+
+/* ===== INIT ===== */
+document.addEventListener('DOMContentLoaded', ()=>{
+  autoCarryForwardIfNewDay();
+  tpUpdateLastBackupLabel();
+  ensureSyncCode();
+  renderAll();
+  renderHistory();
+  showCarryBannerIfAny();
+
+  document.getElementById('histSearch').addEventListener('input', renderHistory);
+  document.getElementById('histSpan').addEventListener('change', renderHistory);
+});
 </script>
 
 </body>
 </html>
+
