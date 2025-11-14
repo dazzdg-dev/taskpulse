@@ -36,6 +36,7 @@ const TODAY = isoToday();
 let viewing = TODAY;
 
 /* ===== Firebase Setup ===== */
+/* ===== Firebase Setup (safe) ===== */
 const firebaseConfig = {
   apiKey: "AIzaSyDXbxWT9viGCGDpPxlzp45QaBr3zUUn2UU",
   authDomain: "taskpulse-9a6ab.firebaseapp.com",
@@ -47,7 +48,17 @@ const firebaseConfig = {
   measurementId: "G-SN3T2B2RMY"
 };
 
-firebase.initializeApp(firebaseConfig);
+let firebaseAvailable = false;
+
+try{
+  if (typeof firebase !== 'undefined' && firebase && firebase.initializeApp){
+    firebase.initializeApp(firebaseConfig);
+    firebaseAvailable = true;
+  }
+}catch(e){
+  console.warn('Firebase init failed, running local-only.', e);
+  firebaseAvailable = false;
+}
 
 const TP_UID = localStorage.getItem('tp_uid') || (() => {
   const v='u_'+Math.random().toString(36).slice(2,10);
@@ -60,7 +71,10 @@ let syncOff = null;
 let writeTimer = null;
 
 function isFirebaseReady(){
-  return (window.firebase && firebase.apps && firebase.apps.length);
+  return firebaseAvailable &&
+         typeof firebase !== 'undefined' &&
+         firebase.apps &&
+         firebase.apps.length;
 }
 
 function setSyncBadge(text,kind=''){
