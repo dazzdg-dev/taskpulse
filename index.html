@@ -1,525 +1,30 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Task Pulse</title>
-
-  <link rel="manifest" href="manifest.json" />
-  <link rel="icon" href="icon-192.png" sizes="192x192" />
-  <meta name="theme-color" content="#0f111a" />
-
-  <style>
-    :root{
-      --bg:#0f111a;
-      --card:#141725;
-      --card-soft:#191d2c;
-      --ink:#e9ecf5;
-      --muted:#a7b0cd;
-      --accent:#26d0ce;
-      --accent-soft:rgba(38,208,206,0.12);
-      --danger:#ff4b6a;
-      --good:#35e38a;
-    }
-    *{box-sizing:border-box;margin:0;padding:0}
-    body{
-      font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-      background:radial-gradient(circle at top,#1c2541 0,#0b1020 55%,#05060b 100%);
-      color:var(--ink);
-      min-height:100vh;
-      display:flex;
-      justify-content:center;
-      padding:14px;
-    }
-    .shell{
-      width:100%;
-      max-width:960px;
-      background:rgba(9,11,24,0.96);
-      border-radius:22px;
-      box-shadow:0 26px 60px rgba(0,0,0,0.6);
-      border:1px solid rgba(95,135,220,0.25);
-      padding:14px 14px 18px;
-      display:flex;
-      flex-direction:column;
-      gap:10px;
-    }
-    header{
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      gap:8px;
-    }
-    .brand{
-      display:flex;
-      align-items:center;
-      gap:10px;
-    }
-    .logo-badge{
-      width:40px;height:40px;border-radius:50%;
-      background:radial-gradient(circle at 30% 20%,#6fffe9 0,#26d0ce 35%,#144675 75%,#050814 100%);
-      display:flex;align-items:center;justify-content:center;
-      font-weight:800;font-size:18px;
-      color:#fff;
-      box-shadow:0 0 12px rgba(111,255,233,0.4);
-    }
-    .brand-title{font-weight:700;font-size:18px;}
-    .brand-sub{font-size:11px;color:var(--muted);}
-    .badge{
-      padding:3px 8px;
-      border-radius:999px;
-      font-size:10px;
-      border:1px solid rgba(130,170,255,0.45);
-      color:var(--muted);
-      white-space:nowrap;
-    }
-    .badge.good{
-      border-color:rgba(72,255,176,0.7);
-      color:var(--good);
-    }
-    .badge.warn{
-      border-color:rgba(255,160,76,0.7);
-      color:#ffc977;
-    }
-
-    /* Tabs */
-    .tabs{
-      display:flex;
-      gap:4px;
-      background:rgba(10,13,30,0.95);
-      border-radius:999px;
-      padding:3px;
-      border:1px solid rgba(63,86,160,0.7);
-      margin-top:4px;
-    }
-    .tab-btn{
-      flex:1;
-      border:none;
-      background:transparent;
-      color:var(--muted);
-      font-size:12px;
-      padding:6px 0;
-      border-radius:999px;
-    }
-    .tab-btn.active{
-      background:linear-gradient(135deg,#26d0ce,#2c88ff);
-      color:#fff;
-      font-weight:600;
-      box-shadow:0 0 10px rgba(38,208,206,0.5);
-    }
-
-    main{display:flex;flex-direction:column;gap:10px;}
-
-    /* KPI row */
-    #kpiRow{
-      display:flex;
-      flex-wrap:wrap;
-      gap:8px;
-      background:linear-gradient(135deg,rgba(38,208,206,0.12),rgba(46,92,255,0.15));
-      border-radius:16px;
-      padding:10px 12px;
-      align-items:center;
-      border:1px solid rgba(94,132,255,0.6);
-    }
-    #kpiRow span{
-      font-size:12px;
-      color:var(--ink);
-      font-weight:500;
-    }
-    #todayLabel, #viewingLabel{
-      font-size:11px;
-      color:var(--muted);
-    }
-
-    /* Carry banner */
-    #carryWarn{
-      display:none;
-      background:rgba(255,193,7,0.12);
-      color:#ffd666;
-      border-radius:10px;
-      padding:6px 8px;
-      font-size:11px;
-      border:1px dashed rgba(255,193,7,0.5);
-    }
-
-    .row{
-      display:flex;
-      flex-direction:column;
-      gap:10px;
-    }
-
-    /* Task entry card */
-    .card{
-      background:var(--card);
-      border-radius:16px;
-      padding:10px 10px;
-      border:1px solid rgba(59,77,140,0.7);
-    }
-    .card-header{
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      margin-bottom:6px;
-    }
-    .card-title{
-      font-size:13px;
-      font-weight:600;
-    }
-    .card-sub{
-      font-size:11px;
-      color:var(--muted);
-    }
-
-    .task-entry{
-      display:flex;
-      gap:6px;
-      margin-top:4px;
-      align-items:center;
-    }
-    #taskInput{
-      flex:1;
-      padding:6px 8px;
-      border-radius:999px;
-      border:none;
-      outline:none;
-      background:var(--card-soft);
-      color:var(--ink);
-      font-size:13px;
-    }
-    #taskInput::placeholder{color:rgba(167,176,205,0.7);}
-    select, button{
-      font-family:inherit;
-      font-size:12px;
-    }
-    #prioSelect{
-      padding:5px 6px;
-      border-radius:999px;
-      border:1px solid rgba(95,129,210,0.8);
-      background:#0f1220;
-      color:var(--ink);
-    }
-    .btn{
-      padding:6px 10px;
-      border-radius:999px;
-      border:none;
-      background:linear-gradient(135deg,#26d0ce,#2c88ff);
-      color:#fff;
-      font-weight:600;
-      cursor:pointer;
-      white-space:nowrap;
-    }
-    .btn-ghost{
-      background:transparent;
-      border:1px solid rgba(113,133,196,0.7);
-      color:var(--muted);
-      font-weight:500;
-    }
-    .btn-danger{
-      background:rgba(255,75,106,0.14);
-      border:1px solid rgba(255,75,106,0.7);
-      color:#ff9fb1;
-    }
-
-    .task-toolbar{
-      display:flex;
-      justify-content:space-between;
-      margin-top:6px;
-      gap:6px;
-      flex-wrap:wrap;
-    }
-    .muted{color:var(--muted);font-size:11px;}
-
-    /* Task list */
-    #taskList{
-      list-style:none;
-      margin-top:6px;
-      display:flex;
-      flex-direction:column;
-      gap:6px;
-      max-height:260px;
-      overflow:auto;
-      padding-right:2px;
-    }
-    .task{
-      display:grid;
-      grid-template-columns:auto 1fr auto auto;
-      gap:6px;
-      align-items:center;
-      padding:6px 8px;
-      border-radius:12px;
-      background:var(--card-soft);
-      border:1px solid rgba(53,70,120,0.8);
-    }
-    .task input[type="checkbox"]{
-      width:16px;height:16px;
-    }
-    .priority{
-      border-radius:999px;
-      padding:2px 6px;
-      font-size:10px;
-      text-transform:uppercase;
-      letter-spacing:0.04em;
-    }
-    .p-low{background:rgba(111,255,233,0.08);color:#6fffe9;}
-    .p-med{background:rgba(255,214,102,0.09);color:#ffd666;}
-    .p-high{background:rgba(255,75,106,0.1);color:#ff9fb1;}
-
-    .stars{
-      display:flex;
-      gap:2px;
-    }
-    .stars button{
-      border:none;
-      background:transparent;
-      font-size:15px;
-      cursor:pointer;
-      opacity:0.4;
-    }
-    .stars button.on{
-      opacity:1;
-      text-shadow:0 0 6px rgba(255,223,120,0.9);
-    }
-    .actions{
-      display:flex;
-      gap:3px;
-    }
-    .actions button{
-      border:none;
-      width:22px;height:22px;
-      border-radius:999px;
-      background:rgba(32,45,92,0.8);
-      color:var(--ink);
-      cursor:pointer;
-      font-size:12px;
-    }
-    .actions .del{
-      background:rgba(255,75,106,0.16);
-      color:#ff9fb1;
-    }
-
-    /* History */
-    .tab-pane{display:none;}
-    .tab-pane.active{display:block;}
-
-    #histControls{
-      display:flex;
-      gap:6px;
-      margin-bottom:6px;
-      flex-wrap:wrap;
-    }
-    #histSearch{
-      flex:1;
-      padding:6px 8px;
-      border-radius:999px;
-      border:none;
-      outline:none;
-      background:var(--card-soft);
-      color:var(--ink);
-      font-size:12px;
-    }
-    #histSpan{
-      padding:6px 8px;
-      border-radius:999px;
-      border:1px solid rgba(95,129,210,0.8);
-      background:#0f1220;
-      color:var(--ink);
-      font-size:12px;
-    }
-    #histList{
-      max-height:260px;
-      overflow:auto;
-      padding-right:2px;
-    }
-    .hist-row button{
-      border:none;
-      border-radius:999px;
-      padding:4px 10px;
-      background:linear-gradient(135deg,#26d0ce,#2c88ff);
-      color:#fff;
-      font-size:11px;
-      cursor:pointer;
-    }
-
-    /* Backup & Sync */
-    .field-row{
-      display:flex;
-      gap:6px;
-      flex-wrap:wrap;
-      margin-top:4px;
-    }
-    #syncCode{
-      flex:1;
-      padding:6px 8px;
-      border-radius:999px;
-      border:none;
-      outline:none;
-      background:var(--card-soft);
-      color:var(--ink);
-      font-size:12px;
-    }
-    #tpBackupStatus{
-      margin-top:4px;
-      font-size:11px;
-      color:var(--muted);
-    }
-    #tpLastBackup{
-      font-size:11px;
-      color:var(--muted);
-      margin-top:4px;
-    }
-    footer{
-      margin-top:6px;
-      font-size:10px;
-      color:var(--muted);
-      text-align:center;
-    }
-
-    @media (max-width:640px){
-      .task{
-        grid-template-columns:auto 1fr auto;
-        grid-template-rows:auto auto;
-      }
-      .stars{order:3;grid-column:2/4;}
-    }
-  </style>
-</head>
-<body>
-<div class="shell">
-  <header>
-    <div class="brand">
-      <div class="logo-badge">TP</div>
-      <div>
-        <div class="brand-title">Task Pulse</div>
-        <div class="brand-sub">Daily focus · v6.1</div>
-      </div>
-    </div>
-    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
-      <span id="syncState" class="badge">Local-only</span>
-      <span id="tpLastBackup" class="muted">Last backup: none</span>
-    </div>
-  </header>
-
-  <div class="tabs">
-    <button class="tab-btn active" data-tab="tasksTab">Tasks</button>
-    <button class="tab-btn" data-tab="histTab">History</button>
-    <button class="tab-btn" data-tab="syncTab">Backup & Sync</button>
-  </div>
-
-  <main>
-    <div id="kpiRow">
-      <span>0 / 0 done (0%) · Quality 0%</span>
-      <span id="todayLabel"></span>
-      <span id="viewingLabel"></span>
-    </div>
-
-    <div id="carryWarn"></div>
-
-    <!-- TASKS TAB -->
-    <section id="tasksTab" class="tab-pane active">
-      <div class="row">
-        <div class="card">
-          <div class="card-header">
-            <div>
-              <div class="card-title">Today’s Tasks</div>
-              <div class="card-sub" id="doneSummary">0 / 0 tasks done (0%)</div>
-            </div>
-            <div class="card-sub" id="qualitySummary">Quality 0%</div>
-          </div>
-
-          <div class="task-entry">
-            <input id="taskInput" list="taskSuggestions" placeholder="Add a task (e.g. Plan meds, call doc)"/>
-            <datalist id="taskSuggestions"></datalist>
-            <select id="prioSelect">
-              <option value="med">Med</option>
-              <option value="high">High</option>
-              <option value="low">Low</option>
-            </select>
-            <button class="btn" onclick="addTask()">Add</button>
-          </div>
-
-          <div class="task-toolbar">
-            <div class="muted">
-              <button class="btn-ghost" onclick="shiftDay(-1)">◀ Prev</button>
-              <button class="btn-ghost" onclick="viewing=TODAY; renderAll()">Today</button>
-              <button class="btn-ghost" onclick="shiftDay(1)">Next ▶</button>
-            </div>
-            <div style="display:flex;gap:4px;">
-              <button class="btn-ghost" onclick="manualCarryOver()">Carry incomplete → tomorrow</button>
-              <button class="btn-danger" onclick="clearCompleted()">Clear completed</button>
-            </div>
-          </div>
-
-          <ul id="taskList"></ul>
-        </div>
-      </div>
-    </section>
-
-    <!-- HISTORY TAB -->
-    <section id="histTab" class="tab-pane">
-      <div class="card">
-        <div class="card-header">
-          <div>
-            <div class="card-title">History & Trends</div>
-            <div class="card-sub">Scroll back through previous days, with quality scores.</div>
-          </div>
-        </div>
-
-        <div id="histControls">
-          <input id="histSearch" placeholder="Search by date or task text…" />
-          <select id="histSpan">
-            <option value="7">Last 7 days</option>
-            <option value="30">Last 30 days</option>
-            <option value="90">Last 90 days</option>
-            <option value="all">All time</option>
-          </select>
-        </div>
-
-        <div id="histList"></div>
-      </div>
-    </section>
-
-    <!-- BACKUP & SYNC TAB -->
-    <section id="syncTab" class="tab-pane">
-      <div class="card">
-        <div class="card-header">
-          <div>
-            <div class="card-title">Cloud Sync & Backup</div>
-            <div class="card-sub">Share your tasks across devices and keep a safety copy.</div>
-          </div>
-        </div>
-
-        <div style="margin-top:6px;">
-          <div class="card-sub" style="margin-bottom:4px;">Sync group code (use the same on all devices):</div>
-          <div class="field-row">
-            <input id="syncCode" placeholder="Enter sync code (grp-XXXXXX)" />
-            <button class="btn-ghost" onclick="copySyncCode()">Copy</button>
-            <button class="btn-ghost" onclick="saveSyncCode()">Save</button>
-            <button class="btn-ghost" onclick="newSyncCode()">New</button>
-          </div>
-        </div>
-
-        <hr style="border:none;border-top:1px solid rgba(48,66,122,0.7);margin:10px 0;" />
-
-        <div>
-          <div class="card-sub" style="margin-bottom:4px;">Local backup (JSON file):</div>
-          <div class="field-row">
-            <button class="btn" onclick="tpDownloadBackup()">Download backup</button>
-            <label class="btn-ghost" style="display:inline-flex;align-items:center;gap:4px;cursor:pointer;">
-              Restore
-              <input id="tpRestoreFile" type="file" accept="application/json" style="display:none;">
-            </label>
-          </div>
-          <div id="tpBackupStatus">No backup action yet.</div>
-        </div>
-      </div>
-    </section>
-  </main>
-
-  <footer>
-    Task Pulse v6.1 • Powered by D Gounder
-  </footer>
-</div>
-
 <script>
+/* ===== Utils (must be first) ===== */
+function isoToday(){ return new Date().toISOString().slice(0,10); }
+function isoOffset(iso,days){
+  const d=new Date(iso);
+  d.setDate(d.getDate()+days);
+  return d.toISOString().slice(0,10);
+}
+function load(k,def){
+  try { return JSON.parse(localStorage.getItem(k) || 'null') ?? def; }
+  catch(e){ return def; }
+}
+function save(k,v){ localStorage.setItem(k, JSON.stringify(v)); }
+function ensureDay(iso){
+  if(!days[iso]) days[iso]=[];
+  return days[iso];
+}
+function fmtHumanDate(iso){
+  const d = new Date(iso);
+  return d.toLocaleDateString(undefined,{day:'2-digit',month:'2-digit',year:'numeric'});
+}
+function escapeHtml(s){
+  return s.replace(/[&<>"']/g, m=>(
+    {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]
+  ));
+}
+
 /* ===== Local Storage Keys & Globals ===== */
 const LS_KEY = 'tp_days_v6_1';
 const LS_LAST_OPEN = 'tp_last_open';
@@ -530,7 +35,51 @@ let days = load(LS_KEY, {});
 const TODAY = isoToday();
 let viewing = TODAY;
 
-/* ===== Tab Logic ===== */
+/* ===== Firebase Setup ===== */
+const firebaseConfig = {
+  apiKey: "AIzaSyDXbxWT9viGCGDpPxlzp45QaBr3zUUn2UU",
+  authDomain: "taskpulse-9a6ab.firebaseapp.com",
+  databaseURL: "https://taskpulse-9a6ab-default-rtdb.firebaseio.com",
+  projectId: "taskpulse-9a6ab",
+  storageBucket: "taskpulse-9a6ab.firebasestorage.app",
+  messagingSenderId: "92117591983",
+  appId: "1:92117591983:web:dd1d73226dbb112c58f15a",
+  measurementId: "G-SN3T2B2RMY"
+};
+
+firebase.initializeApp(firebaseConfig);
+
+const TP_UID = localStorage.getItem('tp_uid') || (() => {
+  const v='u_'+Math.random().toString(36).slice(2,10);
+  localStorage.setItem('tp_uid',v);
+  return v;
+})();
+
+let syncRef = null;
+let syncOff = null;
+let writeTimer = null;
+
+function isFirebaseReady(){
+  return (window.firebase && firebase.apps && firebase.apps.length);
+}
+
+function setSyncBadge(text,kind=''){
+  const el = document.getElementById('syncState');
+  if(!el) return;
+  el.textContent = text;
+  el.className = 'badge ' + (kind || '');
+}
+
+function randomCode(len=6){
+  const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let out='';
+  for(let i=0;i<len;i++){
+    out += chars[Math.floor(Math.random()*chars.length)];
+  }
+  return out;
+}
+
+/* ===== Tabs ===== */
 function showTab(id){
   document.querySelectorAll('.tab-pane').forEach(p=>{
     p.classList.toggle('active', p.id === id);
@@ -540,10 +89,6 @@ function showTab(id){
   });
   if(id === 'histTab') renderHistory();
 }
-
-document.querySelectorAll('.tab-btn').forEach(btn=>{
-  btn.addEventListener('click', ()=>showTab(btn.dataset.tab));
-});
 
 /* ===== TASKS ===== */
 function addTask(){
@@ -939,67 +484,7 @@ function tpRenderDatalist(prefix){
   dl.innerHTML = opts.map(n=>`<option value="${escapeHtml(n)}"></option>`).join('');
 }
 
-(function(){
-  const input = document.getElementById('taskInput');
-  if(!input) return;
-  tpRenderDatalist('');
-  input.addEventListener('input', ()=>tpRenderDatalist(input.value));
-  input.addEventListener('focus', ()=>tpRenderDatalist(input.value));
-})();
-
-/* ===== Firebase Sync Setup ===== */
-// Firebase SDKs loaded below with app+database compat
-
-</script>
-
-<!-- Firebase SDKs -->
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
-
-<script>
-const firebaseConfig = {
-  apiKey: "AIzaSyDXbxWT9viGCGDpPxlzp45QaBr3zUUn2UU",
-  authDomain: "taskpulse-9a6ab.firebaseapp.com",
-  databaseURL: "https://taskpulse-9a6ab-default-rtdb.firebaseio.com",
-  projectId: "taskpulse-9a6ab",
-  storageBucket: "taskpulse-9a6ab.firebasestorage.app",
-  messagingSenderId: "92117591983",
-  appId: "1:92117591983:web:dd1d73226dbb112c58f15a",
-  measurementId: "G-SN3T2B2RMY"
-};
-
-firebase.initializeApp(firebaseConfig);
-
-const TP_UID = localStorage.getItem('tp_uid') || (() => {
-  const v='u_'+Math.random().toString(36).slice(2,10);
-  localStorage.setItem('tp_uid',v);
-  return v;
-})();
-
-let syncRef = null;
-let syncOff = null;
-let writeTimer = null;
-
-function isFirebaseReady(){
-  return (window.firebase && firebase.apps && firebase.apps.length);
-}
-
-function setSyncBadge(text,kind=''){
-  const el = document.getElementById('syncState');
-  if(!el) return;
-  el.textContent = text;
-  el.className = 'badge ' + (kind || '');
-}
-
-function randomCode(len=6){
-  const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let out='';
-  for(let i=0;i<len;i++){
-    out += chars[Math.floor(Math.random()*chars.length)];
-  }
-  return out;
-}
-
+/* ===== Sync Code Helpers ===== */
 function ensureSyncCode(){
   let code = localStorage.getItem(LS_SYNC);
   if(!code){
@@ -1041,6 +526,24 @@ function saveSyncCode(){
   alert('Sync code saved.');
 }
 
+function mergeDays(localDays,remoteDays){
+  const out = {...(localDays||{})};
+  for(const d of Object.keys(remoteDays||{})){
+    if(!out[d]){
+      out[d] = remoteDays[d];
+      continue;
+    }
+    const L = out[d] || [];
+    const R = remoteDays[d] || [];
+    const stamp = arr => arr.reduce((m,t)=>Math.max(
+      m,
+      new Date(t.timeCompleted||t.createdAt||0).getTime()
+    ),0);
+    out[d] = stamp(R) > stamp(L) ? R : L;
+  }
+  return out;
+}
+
 function attachSync(code){
   if(!isFirebaseReady()){
     setSyncBadge('Local-only');
@@ -1077,24 +580,6 @@ function attachSync(code){
   syncOff = ()=>syncRef.off('value',handler);
 }
 
-function mergeDays(localDays,remoteDays){
-  const out = {...(localDays||{})};
-  for(const d of Object.keys(remoteDays||{})){
-    if(!out[d]){
-      out[d] = remoteDays[d];
-      continue;
-    }
-    const L = out[d] || [];
-    const R = remoteDays[d] || [];
-    const stamp = arr => arr.reduce((m,t)=>Math.max(
-      m,
-      new Date(t.timeCompleted||t.createdAt||0).getTime()
-    ),0);
-    out[d] = stamp(R) > stamp(L) ? R : L;
-  }
-  return out;
-}
-
 function debouncedPush(){
   if(!syncRef) return;
   clearTimeout(writeTimer);
@@ -1113,32 +598,6 @@ save = function(k,v){
   if(k===LS_KEY) debouncedPush();
 };
 
-/* ===== Utils ===== */
-function isoToday(){ return new Date().toISOString().slice(0,10); }
-function isoOffset(iso,days){
-  const d=new Date(iso);
-  d.setDate(d.getDate()+days);
-  return d.toISOString().slice(0,10);
-}
-function ensureDay(iso){
-  if(!days[iso]) days[iso]=[];
-  return days[iso];
-}
-function load(k,def){
-  try { return JSON.parse(localStorage.getItem(k) || 'null') ?? def; }
-  catch(e){ return def; }
-}
-function save(k,v){ localStorage.setItem(k, JSON.stringify(v)); }
-function fmtHumanDate(iso){
-  const d = new Date(iso);
-  return d.toLocaleDateString(undefined,{day:'2-digit',month:'2-digit',year:'numeric'});
-}
-function escapeHtml(s){
-  return s.replace(/[&<>"']/g, m=>(
-    {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]
-  ));
-}
-
 /* ===== Service Worker ===== */
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{
@@ -1148,18 +607,30 @@ if('serviceWorker' in navigator){
 
 /* ===== INIT ===== */
 document.addEventListener('DOMContentLoaded', ()=>{
+  // tabs
+  document.querySelectorAll('.tab-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>showTab(btn.dataset.tab));
+  });
+
+  const input = document.getElementById('taskInput');
+  if(input){
+    tpRenderDatalist('');
+    input.addEventListener('input', ()=>tpRenderDatalist(input.value));
+    input.addEventListener('focus', ()=>tpRenderDatalist(input.value));
+  }
+
+  const hs = document.getElementById('histSearch');
+  const hsSpan = document.getElementById('histSpan');
+  if(hs) hs.addEventListener('input', renderHistory);
+  if(hsSpan) hsSpan.addEventListener('change', renderHistory);
+
   autoCarryForwardIfNewDay();
   tpUpdateLastBackupLabel();
   ensureSyncCode();
   renderAll();
   renderHistory();
   showCarryBannerIfAny();
-
-  document.getElementById('histSearch').addEventListener('input', renderHistory);
-  document.getElementById('histSpan').addEventListener('change', renderHistory);
 });
 </script>
-
 </body>
 </html>
-
