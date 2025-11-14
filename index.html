@@ -239,12 +239,18 @@ function showCarryBannerIfAny(){
 }
 
 /* ===== RENDER TASK LIST ===== */
+
 function renderAll(){
-  document.getElementById('todayLabel').textContent   = 'Today: ' + fmtHumanDate(TODAY);
-  document.getElementById('viewingLabel').textContent = 'Viewing: ' + fmtHumanDate(viewing);
+  // Optional date labels
+  const todayEl   = document.getElementById('todayLabel');
+  const viewingEl = document.getElementById('viewingLabel');
+  if (todayEl)   todayEl.textContent   = 'Today: '   + fmtHumanDate(TODAY);
+  if (viewingEl) viewingEl.textContent = 'Viewing: ' + fmtHumanDate(viewing);
 
   const list = ensureDay(viewing);
   const ul   = document.getElementById('taskList');
+  if (!ul) return; // no list container -> nothing to render, avoid crash
+
   ul.innerHTML = '';
 
   list.forEach(t=>{
@@ -305,15 +311,23 @@ function renderAll(){
   const qsum  = list.filter(t=>t.done).reduce((a,b)=>a+(b.stars||0),0);
   const qPct  = done ? Math.round((qsum/(done*3))*100) : 0;
 
-  document.getElementById('doneSummary').textContent =
-    `${done} / ${total} tasks done (${pct}%)`;
+  const doneSummaryEl    = document.getElementById('doneSummary');
+  const qualitySummaryEl = document.getElementById('qualitySummary');
+  const kpiRow           = document.getElementById('kpiRow');
 
-  document.getElementById('qualitySummary').textContent =
-    `Quality ${qPct}%`;
+  if (doneSummaryEl){
+    doneSummaryEl.textContent = `${done} / ${total} tasks done (${pct}%)`;
+  }
+  if (qualitySummaryEl){
+    qualitySummaryEl.textContent = `Quality ${qPct}%`;
+  }
+  if (kpiRow && kpiRow.firstElementChild){
+    kpiRow.firstElementChild.textContent =
+      `${done} / ${total} done (${pct}%) · Quality ${qPct}%`;
+  }
 
-  document.getElementById('kpiRow').firstElementChild.textContent =
-    `${done} / ${total} done (${pct}%) · Quality ${qPct}%`;
-}
+
+
 
 /* ===== HISTORY ===== */
 function renderHistory(){
