@@ -151,27 +151,38 @@
       color:var(--muted);
       font-size:11px;
     }
-    .input-row{
-      display:flex;
-      gap:6px;
-      margin:4px 0 6px;
-    }
-    .input-row input[type="text"]{
-      flex:1;
-      padding:7px 9px;
-      border-radius:999px;
-      border:1px solid var(--outline);
-      background:#050814;
-      color:var(--ink);
-      font-size:13px;
-    }
-    .input-row select{
-      padding:7px 7px;
-      border-radius:999px;
-      border:1px solid var(--outline);
-      background:#050814;
-      color:var(--muted);
-      font-size:12px;
+   .input-row{
+  display:flex;
+  gap:6px;
+  margin:4px 0 6px;
+  flex-wrap:wrap;          /* NEW: allow wrapping on small screens */
+}
+
+.input-row input[type="text"]{
+  flex:1 1 160px;          /* grow, but don’t force huge width */
+  min-width:0;             /* so it can shrink on mobile */
+  padding:7px 9px;
+  border-radius:999px;
+  border:1px solid var(--outline);
+  background:#050814;
+  color:var(--ink);
+  font-size:13px;
+}
+
+.input-row select{
+  flex:0 0 auto;           /* size to content */
+  padding:7px 7px;
+  border-radius:999px;
+  border:1px solid var(--outline);
+  background:#050814;
+  color:var(--muted);
+  font-size:12px;
+}
+
+.input-row .btn{
+  flex:0 0 auto;           /* don’t stretch weirdly */
+}
+
     }
     .btn{
       padding:7px 11px;
