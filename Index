@@ -90,6 +90,7 @@
     }
     .badge.good{border-color:#3bd47a;color:#7fffb3;}
     .badge.warn{border-color:#e7a74c;color:#ffd78a;}
+
     nav.tabs{
       display:flex;
       gap:6px;
@@ -111,6 +112,7 @@
       font-weight:600;
       box-shadow:0 0 18px rgba(39,183,255,.6);
     }
+
     .pill-row{
       margin:6px 0 10px;
       padding:7px 10px;
@@ -123,6 +125,7 @@
       justify-content:space-between;
       background:rgba(10,15,30,.9);
     }
+
     main{
       font-size:13px;
     }
@@ -147,7 +150,7 @@
     .section-head .title{
       font-weight:600;
     }
-      .section-head .meta{
+    .section-head .meta{
       color:var(--muted);
       font-size:11px;
     }
@@ -158,10 +161,9 @@
       margin:4px 0 6px;
       flex-wrap:wrap;          /* allow wrapping on small screens */
     }
-
     .input-row input[type="text"]{
-      flex:1 1 160px;          /* grow, but don’t force huge width */
-      min-width:0;             /* so it can shrink on mobile */
+      flex:1 1 160px;
+      min-width:0;
       padding:7px 9px;
       border-radius:999px;
       border:1px solid var(--outline);
@@ -169,9 +171,8 @@
       color:var(--ink);
       font-size:13px;
     }
-
     .input-row select{
-      flex:0 0 auto;           /* size to content */
+      flex:0 0 auto;
       padding:7px 7px;
       border-radius:999px;
       border:1px solid var(--outline);
@@ -179,9 +180,8 @@
       color:var(--muted);
       font-size:12px;
     }
-
     .input-row .btn{
-      flex:0 0 auto;           /* don’t stretch weirdly */
+      flex:0 0 auto;
     }
 
     .btn{
@@ -191,8 +191,6 @@
       font-size:12px;
       cursor:pointer;
       white-space:nowrap;
-    
-
     }
     .btn-primary{
       background:linear-gradient(135deg,#27b7ff,#4df2ff);
@@ -209,20 +207,22 @@
       border:1px solid var(--danger);
       color:#ff9da8;
     }
+
     .nav-row{
       display:flex;
       justify-content:space-between;
       align-items:center;
       gap:6px;
       margin-top:4px;
-      flex-wrap:wrap; 
+      flex-wrap:wrap;
     }
     .nav-row-left,
     .nav-row-right{
       display:flex;
       gap:4px;
-      flex-wrap:wrap; 
+      flex-wrap:wrap;
     }
+
     #carryWarn{
       display:none;
       margin-top:6px;
@@ -233,6 +233,7 @@
       font-size:11px;
       color:#f0d5ff;
     }
+
     ul#taskList{
       list-style:none;
       margin-top:6px;
@@ -325,13 +326,27 @@
       color:var(--ink);
       font-size:12px;
     }
+
     footer{
       margin-top:8px;
       text-align:center;
       font-size:11px;
       color:var(--muted);
     }
+
+    /* Mobile tweaks */
     @media (max-width:600px){
+      .shell{
+        padding:14px 10px 12px;
+      }
+      header{
+        flex-direction:column;
+        align-items:flex-start;
+        gap:8px;
+      }
+      .top-right{
+        align-items:flex-start;
+      }
       .task{
         grid-template-columns:auto 1fr auto;
       }
@@ -339,18 +354,20 @@
         grid-column:1 / -1;
         justify-content:flex-end;
       }
-    
-
-header{
-    flex-direction:column;
-    align-items:flex-start;
-    gap:8px;
-  }
-  .top-right{
-    align-items:flex-start;
-  }
-}
-    
+      /* stack nav rows so buttons don’t overflow */
+      .nav-row{
+        flex-direction:column;
+        align-items:stretch;
+      }
+      .nav-row-left,
+      .nav-row-right{
+        width:100%;
+        justify-content:space-between;
+      }
+      .nav-row-right{
+        justify-content:flex-end;
+      }
+    }
   </style>
 </head>
 <body>
@@ -361,7 +378,7 @@ header{
       <div class="logo-pill">TP</div>
       <div>
         <h1>Task Pulse</h1>
-        <div class="sub">Daily focus · v6.1</div>
+        <div class="sub">Daily focus · v7.0</div>
       </div>
     </div>
     <div class="top-right">
@@ -480,7 +497,7 @@ header{
   </main>
 
   <footer>
-    Task Pulse v6.1 · Powered by D Gounder
+    Task Pulse v7.0 · Powered by D Gounder
   </footer>
 </div>
 
@@ -492,7 +509,7 @@ header{
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 
 <script>
-/* ===== Utils (must be first) ===== */
+/* ===== Utils ===== */
 function isoToday(){ return new Date().toISOString().slice(0,10); }
 function isoOffset(iso,days){
   const d=new Date(iso);
@@ -515,7 +532,7 @@ function escapeHtml(s){
 }
 
 /* ===== Local Storage Keys & Globals ===== */
-const LS_KEY = 'tp_days_v6_1';
+const LS_KEY = 'tp_days_v7';
 const LS_LAST_OPEN = 'tp_last_open';
 const LS_LAST_CARRY_COUNT = 'tp_last_carry_count';
 const LS_SYNC = 'tp_sync_code';
@@ -529,7 +546,7 @@ function ensureDay(iso){
   return days[iso];
 }
 
-/* ===== Firebase Setup (safe) ===== */
+/* ===== Firebase Setup ===== */
 const firebaseConfig = {
   apiKey: "AIzaSyDXbxWT9viGCGDpPxlzp45QaBr3zUUn2UU",
   authDomain: "taskpulse-9a6ab.firebaseapp.com",
@@ -897,7 +914,7 @@ function renderHistory(){
       }
       const payload = {
         app:'taskpulse',
-        version:'v6.1',
+        version:'v7.0',
         exportedAt:new Date().toISOString(),
         dump
       };
@@ -1122,7 +1139,6 @@ if('serviceWorker' in navigator){
 
 /* ===== INIT ===== */
 document.addEventListener('DOMContentLoaded', ()=>{
-  // tabs
   document.querySelectorAll('.tab-btn').forEach(btn=>{
     btn.addEventListener('click', ()=>showTab(btn.dataset.tab));
   });
