@@ -1,3 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Task Pulse</title>
+
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="icon-192.png" sizes="192x192" />
+  <meta name="theme-color" content="#0f111a" />
+
+  <style>
+    :root{
+      --bg:#0f111a;
+      --card:#141725;
+      --ink:#e9ecf5;
+      --muted:#a7b0cf;
+      --accent:#29c4ff;
+      --accent-soft:#193b66;
+      --danger:#e05264;
+      --outline:#262a3c;
+      --task-bg:#101528;
+      --pill:#1b2440;
+    }
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{
+      font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      background:radial-gradient(circle at top,#1d2440 0,#050611 55%);
+      color:var(--ink);
+      min-height:100vh;
+      display:flex;
+      align-items:flex-start;
+      justify-content:center;
+      padding:12px;
+    }
+    .shell{
+      max-width:900px;
+      width:100%;
+      background:#050814;
+      border-radius:18px;
+      box-shadow:0 18px 60px rgba(0,0,0,.7);
+      padding:16px 18px 14px;
+      border:1px solid #20263c;
+    }
+    header{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      margin-bottom:12px;
+    }
+    .brand{
+      display:flex;
+      align-items:center;
+      gap:10px;
+    }
+    .logo-pill{
+      width:42px;
+      height:42px;
+      border-radius:999px;
+      background:radial-gradient(circle at 30% 20%,#5fffd0 0,#0fd0ff 40%,#0b1428 80%);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      box-shadow:0 0 18px rgba(0,255,213,.5);
+      font-weight:800;
+      letter-spacing:.03em;
+      color:white;
+    }
+    .brand h1{
+      font-size:18px;
+      font-weight:700;
+    }
+    .brand .sub{
+      font-size:11px;
+      color:var(--muted);
+    }
+    .top-right{
+      display:flex;
+      flex-direction:column;
+      align-items:flex-end;
+      gap:4px;
+      font-size:11px;
+      color:var(--muted);
+    }
+    .badge{
+      padding:2px 8px;
+      border-radius:999px;
+      border:1px solid #3b425d;
+      font-size:11px;
+    }
+    .badge.good{border-color:#3bd47a;color:#7fffb3;}
+    .badge.warn{border-color:#e7a74c;color:#ffd78a;}
+    nav.tabs{
+      display:flex;
+      gap:6px;
+      margin:10px 0 8px;
+    }
+    .tab-btn{
+      flex:1;
+      padding:7px 10px;
+      font-size:13px;
+      border-radius:999px;
+      border:1px solid transparent;
+      background:var(--pill);
+      color:var(--muted);
+      cursor:pointer;
+    }
+    .tab-btn.active{
+      background:linear-gradient(135deg,#27b7ff,#4df2ff);
+      color:#04101b;
+      font-weight:600;
+      box-shadow:0 0 18px rgba(39,183,255,.6);
+    }
+    .pill-row{
+      margin:6px 0 10px;
+      padding:7px 10px;
+      border-radius:999px;
+      border:1px solid var(--outline);
+      color:var(--muted);
+      font-size:13px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      background:rgba(10,15,30,.9);
+    }
+    main{
+      font-size:13px;
+    }
+    .tab-pane{display:none;}
+    .tab-pane.active{display:block;}
+
+    /* Tasks tab */
+    .section-card{
+      border-radius:14px;
+      background:var(--card);
+      border:1px solid var(--outline);
+      padding:10px 10px 8px;
+      margin-bottom:8px;
+    }
+    .section-head{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      margin-bottom:6px;
+      font-size:13px;
+    }
+    .section-head .title{
+      font-weight:600;
+    }
+    .section-head .meta{
+      color:var(--muted);
+      font-size:11px;
+    }
+    .input-row{
+      display:flex;
+      gap:6px;
+      margin:4px 0 6px;
+    }
+    .input-row input[type="text"]{
+      flex:1;
+      padding:7px 9px;
+      border-radius:999px;
+      border:1px solid var(--outline);
+      background:#050814;
+      color:var(--ink);
+      font-size:13px;
+    }
+    .input-row select{
+      padding:7px 7px;
+      border-radius:999px;
+      border:1px solid var(--outline);
+      background:#050814;
+      color:var(--muted);
+      font-size:12px;
+    }
+    .btn{
+      padding:7px 11px;
+      border-radius:999px;
+      border:none;
+      font-size:12px;
+      cursor:pointer;
+      white-space:nowrap;
+    }
+    .btn-primary{
+      background:linear-gradient(135deg,#27b7ff,#4df2ff);
+      color:#04101b;
+      font-weight:600;
+    }
+    .btn-ghost{
+      background:transparent;
+      border:1px solid var(--outline);
+      color:var(--muted);
+    }
+    .btn-danger{
+      background:rgba(224,82,100,.12);
+      border:1px solid var(--danger);
+      color:#ff9da8;
+    }
+    .nav-row{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:6px;
+      margin-top:4px;
+    }
+    .nav-row-left,
+    .nav-row-right{
+      display:flex;
+      gap:4px;
+    }
+    #carryWarn{
+      display:none;
+      margin-top:6px;
+      padding:6px 9px;
+      border-radius:9px;
+      background:#221525;
+      border:1px solid #b26ad5;
+      font-size:11px;
+      color:#f0d5ff;
+    }
+    ul#taskList{
+      list-style:none;
+      margin-top:6px;
+    }
+    .task{
+      display:grid;
+      grid-template-columns:auto 1fr auto auto;
+      gap:8px;
+      align-items:center;
+      padding:7px 8px;
+      margin-bottom:4px;
+      border-radius:10px;
+      background:var(--task-bg);
+      border:1px solid #1e2234;
+    }
+    .task input[type="checkbox"]{
+      width:15px;
+      height:15px;
+    }
+    .task .priority{
+      display:inline-block;
+      padding:1px 6px;
+      border-radius:999px;
+      font-size:10px;
+      text-transform:uppercase;
+      letter-spacing:.04em;
+    }
+    .priority.p-low{background:#16352b;color:#7af3b1;}
+    .priority.p-med{background:#3a321b;color:#ffe08a;}
+    .priority.p-high{background:#3d1b25;color:#ff9ab2;}
+    .stars button{
+      border:none;
+      background:transparent;
+      cursor:pointer;
+      font-size:14px;
+      opacity:.4;
+    }
+    .stars button.on{
+      opacity:1;
+      text-shadow:0 0 8px rgba(255,215,120,.7);
+    }
+    .actions button{
+      border:none;
+      background:transparent;
+      cursor:pointer;
+      font-size:15px;
+      padding:0 2px;
+      color:#99a4d2;
+    }
+    .actions .del{
+      color:#ff9ba9;
+    }
+    .muted{color:var(--muted);}
+
+    /* History tab */
+    .hist-controls{
+      display:flex;
+      gap:6px;
+      margin-bottom:6px;
+    }
+    .hist-controls input{
+      flex:1;
+      padding:6px 8px;
+      border-radius:999px;
+      border:1px solid var(--outline);
+      background:#050814;
+      color:var(--ink);
+      font-size:12px;
+    }
+    .hist-controls select{
+      padding:6px 6px;
+      border-radius:999px;
+      border:1px solid var(--outline);
+      background:#050814;
+      color:var(--muted);
+      font-size:12px;
+    }
+
+    /* Backup & Sync */
+    .stack-vert{display:flex;flex-direction:column;gap:8px;}
+    .row{display:flex;gap:6px;align-items:center;flex-wrap:wrap;}
+    .row label{font-size:12px;color:var(--muted);}
+    .row input[type="text"]{
+      flex:1;
+      min-width:0;
+      padding:6px 8px;
+      border-radius:999px;
+      border:1px solid var(--outline);
+      background:#050814;
+      color:var(--ink);
+      font-size:12px;
+    }
+    footer{
+      margin-top:8px;
+      text-align:center;
+      font-size:11px;
+      color:var(--muted);
+    }
+    @media (max-width:600px){
+      .task{
+        grid-template-columns:auto 1fr auto;
+      }
+      .task .actions{
+        grid-column:1 / -1;
+        justify-content:flex-end;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div class="shell">
+  <header>
+    <div class="brand">
+      <div class="logo-pill">TP</div>
+      <div>
+        <h1>Task Pulse</h1>
+        <div class="sub">Daily focus · v6.1</div>
+      </div>
+    </div>
+    <div class="top-right">
+      <div id="syncState" class="badge">Local-only</div>
+      <div id="tpLastBackup">Last backup: none</div>
+    </div>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab-btn active" data-tab="tasksTab">Tasks</button>
+    <button class="tab-btn" data-tab="histTab">History</button>
+    <button class="tab-btn" data-tab="backupTab">Backup &amp; Sync</button>
+  </nav>
+
+  <div class="pill-row" id="kpiRow">
+    <span>0 / 0 done (0%) · Quality 0%</span>
+    <span id="viewingLabel" class="muted"></span>
+  </div>
+
+  <main>
+    <!-- TASKS TAB -->
+    <section id="tasksTab" class="tab-pane active">
+      <div class="section-card">
+        <div class="section-head">
+          <div>
+            <div class="title">Today’s Tasks</div>
+            <div class="meta" id="todayLabel"></div>
+          </div>
+          <div class="meta">
+            <span id="doneSummary">0 / 0 tasks done (0%)</span> •
+            <span id="qualitySummary">Quality 0%</span>
+          </div>
+        </div>
+
+        <div class="input-row">
+          <input id="taskInput" type="text" list="taskSuggestions"
+                 placeholder="Add a task (e.g. Plan meds, call doc)" />
+          <select id="prioSelect">
+            <option value="med">Med</option>
+            <option value="high">High</option>
+            <option value="low">Low</option>
+          </select>
+          <button class="btn btn-primary" onclick="addTask()">Add</button>
+        </div>
+
+        <div class="nav-row">
+          <div class="nav-row-left">
+            <button class="btn btn-ghost" onclick="shiftDay(-1)">&lt; Prev</button>
+            <button class="btn btn-ghost" onclick="viewing = TODAY; renderAll();">Today</button>
+            <button class="btn btn-ghost" onclick="shiftDay(1)">Next &gt;</button>
+          </div>
+          <div class="nav-row-right">
+            <button class="btn btn-ghost" onclick="manualCarryOver()">Carry incomplete → tomorrow</button>
+            <button class="btn btn-danger" onclick="clearCompleted()">Clear completed</button>
+          </div>
+        </div>
+
+        <div id="carryWarn"></div>
+
+        <ul id="taskList"></ul>
+      </div>
+    </section>
+
+    <!-- HISTORY TAB -->
+    <section id="histTab" class="tab-pane">
+      <div class="section-card">
+        <div class="section-head">
+          <div class="title">History</div>
+          <div class="meta">See past days &amp; completion rate</div>
+        </div>
+
+        <div class="hist-controls">
+          <input id="histSearch" type="text" placeholder="Search by date or task name…" />
+          <select id="histSpan">
+            <option value="7">Last 7 days</option>
+            <option value="30" selected>Last 30 days</option>
+            <option value="90">Last 90 days</option>
+            <option value="all">All time</option>
+          </select>
+        </div>
+
+        <div id="histList"></div>
+      </div>
+    </section>
+
+    <!-- BACKUP & SYNC TAB -->
+    <section id="backupTab" class="tab-pane">
+      <div class="section-card stack-vert">
+        <div class="title" style="font-weight:600;margin-bottom:4px;">Backup</div>
+        <div class="row">
+          <button class="btn btn-primary" onclick="tpDownloadBackup()">Download backup</button>
+          <label>
+            Restore:
+            <input id="tpRestoreFile" type="file" accept="application/json" />
+          </label>
+        </div>
+        <div id="tpBackupStatus" class="muted" style="font-size:12px;"></div>
+      </div>
+
+      <div class="section-card stack-vert" style="margin-top:8px;">
+        <div class="title" style="font-weight:600;margin-bottom:4px;">Sync between devices</div>
+        <div class="row">
+          <label for="syncCode">Group code</label>
+          <input id="syncCode" type="text" />
+        </div>
+        <div class="row">
+          <button class="btn btn-primary" onclick="saveSyncCode()">Save</button>
+          <button class="btn btn-ghost" onclick="newSyncCode()">New code</button>
+          <button class="btn btn-ghost" onclick="copySyncCode()">Copy</button>
+        </div>
+        <div class="muted" style="font-size:11px;">
+          Use the same group code on your other devices to share Task Pulse data via Firebase.
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    Task Pulse v6.1 · Powered by D Gounder
+  </footer>
+</div>
+
+<!-- Predictive suggestions -->
+<datalist id="taskSuggestions"></datalist>
+
+<!-- Firebase SDKs -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+
 <script>
 /* ===== Utils (must be first) ===== */
 function isoToday(){ return new Date().toISOString().slice(0,10); }
@@ -10,11 +477,7 @@ function load(k,def){
   try { return JSON.parse(localStorage.getItem(k) || 'null') ?? def; }
   catch(e){ return def; }
 }
-function save(k,v){ localStorage.setItem(k, JSON.stringify(v)); }
-function ensureDay(iso){
-  if(!days[iso]) days[iso]=[];
-  return days[iso];
-}
+function saveRaw(k,v){ localStorage.setItem(k, JSON.stringify(v)); }
 function fmtHumanDate(iso){
   const d = new Date(iso);
   return d.toLocaleDateString(undefined,{day:'2-digit',month:'2-digit',year:'numeric'});
@@ -31,11 +494,15 @@ const LS_LAST_OPEN = 'tp_last_open';
 const LS_LAST_CARRY_COUNT = 'tp_last_carry_count';
 const LS_SYNC = 'tp_sync_code';
 
-let days = load(LS_KEY, {});
+let days = load(LS_KEY, {}) || {};
 const TODAY = isoToday();
 let viewing = TODAY;
 
-/* ===== Firebase Setup ===== */
+function ensureDay(iso){
+  if(!days[iso]) days[iso]=[];
+  return days[iso];
+}
+
 /* ===== Firebase Setup (safe) ===== */
 const firebaseConfig = {
   apiKey: "AIzaSyDXbxWT9viGCGDpPxlzp45QaBr3zUUn2UU",
@@ -179,7 +646,7 @@ function shiftDay(delta){
   renderAll();
 }
 
-/* ===== MANUAL CARRY ===== */
+/* ===== MANUAL / AUTO CARRY ===== */
 function manualCarryOver(){
   const list = ensureDay(viewing);
   const incomplete = list.filter(t=>!t.done);
@@ -202,7 +669,6 @@ function manualCarryOver(){
   renderAll();
 }
 
-/* ===== AUTO CARRY (on new day) ===== */
 function autoCarryForwardIfNewDay(){
   const last = localStorage.getItem(LS_LAST_OPEN);
   const today = isoToday();
@@ -239,19 +705,15 @@ function showCarryBannerIfAny(){
 }
 
 /* ===== RENDER TASK LIST ===== */
-
-/* ===== RENDER TASK LIST ===== */
 function renderAll(){
-  // Optional date labels
   const todayEl   = document.getElementById('todayLabel');
   const viewingEl = document.getElementById('viewingLabel');
-  if (todayEl)   todayEl.textContent   = 'Today: '   + fmtHumanDate(TODAY);
-  if (viewingEl) viewingEl.textContent = 'Viewing: ' + fmtHumanDate(viewing);
+  if(todayEl)   todayEl.textContent   = fmtHumanDate(TODAY);
+  if(viewingEl) viewingEl.textContent = 'Viewing: ' + fmtHumanDate(viewing);
 
   const list = ensureDay(viewing);
   const ul   = document.getElementById('taskList');
-  if (!ul) return; // no list container -> nothing to render, avoid crash
-
+  if (!ul) return;
   ul.innerHTML = '';
 
   list.forEach(t=>{
@@ -333,8 +795,8 @@ function renderHistory(){
   const wrap = document.getElementById('histList');
   if(!wrap) return;
 
-  const q   = document.getElementById('histSearch').value.trim().toLowerCase();
-  const spanSel = document.getElementById('histSpan').value;
+  const q   = (document.getElementById('histSearch')?.value || '').trim().toLowerCase();
+  const spanSel = (document.getElementById('histSpan')?.value || '30');
 
   let keys = Object.keys(days||{});
   if(spanSel !== 'all'){
@@ -397,8 +859,6 @@ function renderHistory(){
     wrap.appendChild(row);
   });
 }
-
-
 
 /* ===== BACKUP & RESTORE ===== */
 (function(){
@@ -621,11 +1081,11 @@ function debouncedPush(){
 }
 
 /* Override save so sync writes to cloud */
-const _save = save;
-save = function(k,v){
+const _save = saveRaw;
+function save(k,v){
   _save(k,v);
   if(k===LS_KEY) debouncedPush();
-};
+}
 
 /* ===== Service Worker ===== */
 if('serviceWorker' in navigator){
@@ -659,6 +1119,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
   renderAll();
   renderHistory();
   showCarryBannerIfAny();
+  setSyncBadge(isFirebaseReady() ? 'Sync ready' : 'Local-only', isFirebaseReady() ? 'good' : '');
 });
 </script>
 </body>
