@@ -240,6 +240,7 @@ function showCarryBannerIfAny(){
 
 /* ===== RENDER TASK LIST ===== */
 
+/* ===== RENDER TASK LIST ===== */
 function renderAll(){
   // Optional date labels
   const todayEl   = document.getElementById('todayLabel');
@@ -325,9 +326,7 @@ function renderAll(){
     kpiRow.firstElementChild.textContent =
       `${done} / ${total} done (${pct}%) · Quality ${qPct}%`;
   }
-
-
-
+}
 
 /* ===== HISTORY ===== */
 function renderHistory(){
@@ -398,6 +397,8 @@ function renderHistory(){
     wrap.appendChild(row);
   });
 }
+
+
 
 /* ===== BACKUP & RESTORE ===== */
 (function(){
