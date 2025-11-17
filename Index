@@ -333,6 +333,51 @@
       font-size:11px;
       color:var(--muted);
     }
+    /* Splash screen */
+    #splash{
+      position:fixed;
+      inset:0;
+      background:radial-gradient(circle at top,#2b2220 0,#050611 60%);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      z-index:9999;
+      transition:opacity .4s ease, visibility .4s ease;
+    }
+    #splash.hide{
+      opacity:0;
+      visibility:hidden;
+      pointer-events:none;
+    }
+    .splash-inner{
+      text-align:center;
+    }
+    .splash-hex{
+      width:130px;
+      height:150px;
+      background:#ff9b3b;              /* orange */
+      clip-path:polygon(25% 0,75% 0,100% 50%,75% 100%,25% 100%,0 50%);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      box-shadow:0 0 35px rgba(255,155,59,.8);
+    }
+    .splash-hex span{
+      font-weight:800;
+      font-size:32px;
+      letter-spacing:.06em;
+      color:#120805;
+    }
+    .splash-title{
+      margin-top:18px;
+      font-size:20px;
+      font-weight:700;
+    }
+    .splash-sub{
+      margin-top:4px;
+      font-size:12px;
+      color:var(--muted);
+    }
 
     /* Mobile tweaks */
     @media (max-width:600px){
@@ -371,6 +416,23 @@
   </style>
 </head>
 <body>
+<body>
+
+<!-- ORANGE HEX SPLASH -->
+<div id="splash">
+  <div class="splash-inner">
+    <div class="splash-hex">
+      <span>TP</span>
+    </div>
+    <div class="splash-title">Task Pulse</div>
+    <div class="splash-sub">Loading your day…</div>
+  </div>
+</div>
+
+<div class="shell">
+  <!-- existing header / app content starts here -->
+
+
 
 <div class="shell">
   <header>
@@ -1139,6 +1201,7 @@ if('serviceWorker' in navigator){
 
 /* ===== INIT ===== */
 document.addEventListener('DOMContentLoaded', ()=>{
+  // tabs
   document.querySelectorAll('.tab-btn').forEach(btn=>{
     btn.addEventListener('click', ()=>showTab(btn.dataset.tab));
   });
@@ -1162,7 +1225,15 @@ document.addEventListener('DOMContentLoaded', ()=>{
   renderHistory();
   showCarryBannerIfAny();
   setSyncBadge(isFirebaseReady() ? 'Sync ready' : 'Local-only', isFirebaseReady() ? 'good' : '');
+
+  // 👉 hide splash
+  const splash = document.getElementById('splash');
+  if (splash){
+    setTimeout(()=> splash.classList.add('hide'), 400);
+  }
 });
+
+
 </script>
 </body>
 </html>
