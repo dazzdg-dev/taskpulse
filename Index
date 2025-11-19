@@ -333,6 +333,7 @@
       font-size:11px;
       color:var(--muted);
     }
+
     /* Splash screen */
     #splash{
       position:fixed;
@@ -355,7 +356,7 @@
     .splash-hex{
       width:130px;
       height:150px;
-      background:#ff9b3b;              /* orange */
+      background:#ff9b3b;
       clip-path:polygon(25% 0,75% 0,100% 50%,75% 100%,25% 100%,0 50%);
       display:flex;
       align-items:center;
@@ -399,7 +400,6 @@
         grid-column:1 / -1;
         justify-content:flex-end;
       }
-      /* stack nav rows so buttons don’t overflow */
       .nav-row{
         flex-direction:column;
         align-items:stretch;
@@ -416,7 +416,6 @@
   </style>
 </head>
 <body>
-<body>
 
 <!-- ORANGE HEX SPLASH -->
 <div id="splash">
@@ -428,11 +427,6 @@
     <div class="splash-sub">Loading your day…</div>
   </div>
 </div>
-
-<div class="shell">
-  <!-- existing header / app content starts here -->
-
-
 
 <div class="shell">
   <header>
@@ -1226,14 +1220,12 @@ document.addEventListener('DOMContentLoaded', ()=>{
   showCarryBannerIfAny();
   setSyncBadge(isFirebaseReady() ? 'Sync ready' : 'Local-only', isFirebaseReady() ? 'good' : '');
 
-  // 👉 hide splash
+  // hide splash after short delay
   const splash = document.getElementById('splash');
   if (splash){
     setTimeout(()=> splash.classList.add('hide'), 400);
   }
 });
-
-
 </script>
 </body>
 </html>
