@@ -1,9 +1,10 @@
 {
   "name": "Task Pulse",
-  "short_name": "TaskPulse",
+  "short_name": "Task Pulse",
+  "description": "Daily focus tracker with carry-over tasks and sync.",
   "start_url": ".",
   "display": "standalone",
-  "background_color": "#0f111a",
+  "background_color": "#050814",
   "theme_color": "#0f111a",
   "icons": [
     {
